@@ -58,7 +58,10 @@ const p2 = DCFEngine.buildProblem("exitMultiple", "medium", {
   cashFlowGrowth: 0.06,
   exitMultiple: 8,
   finalYearMetric: 350,
-  netDebt: 80,
+  debt: 150,
+  preferredStock: 20,
+  noncontrollingInterests: 15,
+  cashAndEquivalents: 70,
   sharesOutstanding: 100,
 });
 
@@ -68,8 +71,8 @@ approxEqual(p2.solution.rows[4].presentValue, 170.0156, 0.0005, "PV5");
 approxEqual(p2.solution.terminalValue, 2800.0, 0.0001, "Terminal Value");
 approxEqual(p2.solution.pvTerminalValue, 1778.6375, 0.0005, "PV of Terminal Value");
 approxEqual(p2.solution.enterpriseValue, 2686.7370, 0.0005, "Enterprise Value");
-approxEqual(p2.solution.equityValue, 2606.7370, 0.0005, "Equity Value");
-approxEqual(p2.solution.valuePerShare, 26.067370, 0.00005, "Value per Share");
+approxEqual(p2.solution.equityValue, 2571.7370, 0.0005, "Equity Value");
+approxEqual(p2.solution.valuePerShare, 25.717370, 0.00005, "Value per Share");
 
 const fu2 = DCFEngine.generateFollowUps(p2);
 approxEqual(fu2[0].correctValue, 2583.8622, 0.0005, "Follow-up 1 (rate+1pt) EV");

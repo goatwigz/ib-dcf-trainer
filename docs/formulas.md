@@ -21,7 +21,7 @@ sub-type) that match the actual engine output exactly.
 | Cash flow                     | given directly, each year | must be grown from a base + growth rate  |
 | Discount rate                 | whole %, 8–12%            | half-points, 6–15%                       |
 | Terminal growth rate (Gordon) | 2–3%                      | 1.5–3.5%                                  |
-| Equity bridge (net debt → per-share) | not included       | included                                  |
+| Equity bridge (debt, preferred, NCI, cash → per-share) | not included | included                        |
 
 **Safety rule:** the terminal growth rate is always kept at least 2
 percentage points below the discount rate, so the perpetuity formula
@@ -50,7 +50,15 @@ never approaches division by a near-zero number.
 
 7. **Enterprise Value** = Σ (PV of each year's cash flow) + PV of Terminal Value
 
-8. **Equity Value** *(medium tier only)* = Enterprise Value − Net Debt
+8. **Equity Value** *(medium tier only)* = Enterprise Value − Debt − Preferred Stock
+   − Noncontrolling Interests + Cash & Cash Equivalents
+
+   This is the full EV-to-equity bridge, not a collapsed "net debt"
+   shortcut. Preferred stock and noncontrolling interests are randomly
+   zero about half the time (most companies don't carry them), but
+   they're always shown as explicit line items — the drill is testing
+   whether the student knows to include every term of the bridge, not
+   just whether they can subtract two numbers.
 
 9. **Value per Share** *(medium tier only)* = Equity Value ÷ Shares Outstanding
 
@@ -107,7 +115,8 @@ flows given directly as $100m / $110m / $120m.
 
 **Given:** discount rate = 9.5%, 5 years, base cash flow = $200m growing
 at 6%/year, exit multiple = 8.0x applied to final-year EBITDA of $350m,
-net debt = $80m, shares outstanding = 100m.
+debt = $150m, preferred stock = $20m, noncontrolling interests = $15m,
+cash & equivalents = $70m, shares outstanding = 100m.
 
 | Year | Cash Flow | Discount Factor | Present Value |
 |------|-----------|------------------|----------------|
@@ -120,8 +129,8 @@ net debt = $80m, shares outstanding = 100m.
 - Terminal Value = 350 × 8.0 = **2,800.00**
 - PV of Terminal Value = 2,800.00 × 0.6352 = **1,778.64**
 - Enterprise Value = (193.61+187.42+181.43+175.63+170.02) + 1,778.64 = **2,686.74**
-- Equity Value = 2,686.74 − 80 = **2,606.74**
-- Value per Share = 2,606.74 ÷ 100 = **$26.07**
+- Equity Value = 2,686.74 − 150 (debt) − 20 (preferred) − 15 (NCI) + 70 (cash) = **2,571.74**
+- Value per Share = 2,571.74 ÷ 100 = **$25.72**
 
 **Follow-up check:**
 - Discount rate → 10.5%: new EV = **2,583.86** (down $102.87m) ✓ direction down

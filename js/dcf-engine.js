@@ -33,7 +33,8 @@ Two tiers:
    *   Medium:      baseCashFlow, cashFlowGrowth
    *   gordon:      terminalGrowth
    *   exitMultiple:finalYearMetric, exitMultiple
-   *   Medium only: netDebt, sharesOutstanding
+   *   Medium only: debt, preferredStock, noncontrollingInterests,
+   *               cashAndEquivalents, sharesOutstanding
    */
   function buildProblem(subtype, tier, inputs) {
     const years = inputs.years;
@@ -85,10 +86,12 @@ Two tiers:
     };
 
     // Step 5 (medium only): equity bridge
+    // Equity Value = Enterprise Value − Debt − Preferred Stock
+    //                − Noncontrolling Interests + Cash & Equivalents
     if (tier === "medium") {
-      const netDebt = inputs.netDebt;
-      const sharesOutstanding = inputs.sharesOutstanding;
-      const equityValue = enterpriseValue - netDebt;
+      const { debt, preferredStock, noncontrollingInterests, cashAndEquivalents, sharesOutstanding } = inputs;
+      const equityValue =
+        enterpriseValue - debt - preferredStock - noncontrollingInterests + cashAndEquivalents;
       const valuePerShare = equityValue / sharesOutstanding;
       solution.equityValue = equityValue;
       solution.valuePerShare = valuePerShare;
@@ -182,7 +185,15 @@ Two tiers:
     }
 
     if (tier === "medium") {
-      inputs.netDebt = randStep(rng, -50, 200, 5);
+      // Full EV-to-equity bridge. Debt and cash are (almost) always
+      // present; preferred stock and noncontrolling interests are only
+      // present about half the time, since most companies don't carry
+      // them — the student still has to know to include the line (as
+      // zero) rather than skip the concept entirely.
+      inputs.debt = randStep(rng, 0, 250, 5);
+      inputs.cashAndEquivalents = randStep(rng, 5, 150, 5);
+      inputs.preferredStock = rng() < 0.5 ? 0 : randStep(rng, 10, 100, 5);
+      inputs.noncontrollingInterests = rng() < 0.5 ? 0 : randStep(rng, 5, 80, 5);
       inputs.sharesOutstanding = randStep(rng, 20, 500, 5);
     }
 

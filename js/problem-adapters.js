@@ -22,6 +22,24 @@ already "filled in" and not editable) or blank (student must fill it).
   function pct(n, decimals) {
     return (Number(n) * 100).toFixed(decimals === undefined ? 2 : decimals) + "%";
   }
+  // Wraps a formatted number in monospace styling for embedding inline
+  // within a sentence — keeps "monospace for all numeric values" true
+  // even when the numbers live inside prose instead of a table cell.
+  function nm(s) {
+    return '<span class="inline-num">' + s + "</span>";
+  }
+
+  // Builds the "debt is X, cash is Y, N shares outstanding" clause,
+  // omitting preferred stock / noncontrolling interests when they're
+  // zero (common — most companies don't carry them) so the sentence
+  // doesn't read "preferred stock $0.0m."
+  function bridgeClause(inputs) {
+    const parts = ["debt is " + nm(money(inputs.debt))];
+    if (inputs.preferredStock > 0) parts.push("preferred stock " + nm(money(inputs.preferredStock)));
+    if (inputs.noncontrollingInterests > 0) parts.push("noncontrolling interests " + nm(money(inputs.noncontrollingInterests)));
+    parts.push("cash is " + nm(money(inputs.cashAndEquivalents)));
+    return parts.join(", ") + ", and there are " + nm(inputs.sharesOutstanding + "m") + " shares outstanding";
+  }
 
   // ---- DCF table (gordon / exitMultiple) ----------------------------
   function dcfTableAdapter(problem) {
@@ -56,28 +74,40 @@ already "filled in" and not editable) or blank (student must fill it).
       });
     }
 
-    const givenLines = [
-      "Discount rate: " + pct(inputs.discountRate, 1),
-      subtype === "gordon"
-        ? "Terminal growth rate: " + pct(inputs.terminalGrowth, 1)
-        : "Exit multiple: " + inputs.exitMultiple.toFixed(1) + "x on final-year EBITDA of " + money(inputs.finalYearMetric),
-    ];
-    if (tier === "medium") {
-      givenLines.push(
-        "Base cash flow: " + money(inputs.baseCashFlow) + " growing at " + pct(inputs.cashFlowGrowth, 1) + "/year"
-      );
-      givenLines.push(
-        "Debt " + money(inputs.debt) + ", Preferred Stock " + money(inputs.preferredStock) +
-        ", Noncontrolling Interests " + money(inputs.noncontrollingInterests) +
-        ", Cash & Equivalents " + money(inputs.cashAndEquivalents) +
-        ", Shares Outstanding " + inputs.sharesOutstanding + "m"
-      );
+    let narrative;
+    if (subtype === "gordon" && tier === "easy") {
+      narrative =
+        '<p>Your interviewer says: &ldquo;Let&rsquo;s do a quick DCF. This company will generate free cash flows of ' +
+        nm(money(inputs.cashFlows[0])) + ", " + nm(money(inputs.cashFlows[1])) + ", and " + nm(money(inputs.cashFlows[2])) +
+        " over the next three years. Discount those back at " + nm(pct(inputs.discountRate, 1)) +
+        ", and assume cash flows grow at " + nm(pct(inputs.terminalGrowth, 1)) +
+        " forever after that. Walk me through getting to Enterprise Value.&rdquo;</p>";
+    } else if (subtype === "gordon" && tier === "medium") {
+      narrative =
+        '<p>Your interviewer says: &ldquo;Let&rsquo;s build a 5-year DCF. Current free cash flow is ' +
+        nm(money(inputs.baseCashFlow)) + " growing at " + nm(pct(inputs.cashFlowGrowth, 1)) +
+        " a year. Discount it at " + nm(pct(inputs.discountRate, 1)) + ", with a " + nm(pct(inputs.terminalGrowth, 1)) +
+        " terminal growth rate. Then bridge down to a per-share value — " + bridgeClause(inputs) + ".&rdquo;</p>";
+    } else if (subtype === "exitMultiple" && tier === "easy") {
+      narrative =
+        '<p>Your interviewer says: &ldquo;Same idea, but use an exit multiple this time. Free cash flows are ' +
+        nm(money(inputs.cashFlows[0])) + ", " + nm(money(inputs.cashFlows[1])) + ", and " + nm(money(inputs.cashFlows[2])) +
+        " over three years, discounted at " + nm(pct(inputs.discountRate, 1)) +
+        ". For terminal value, apply a " + nm(inputs.exitMultiple.toFixed(1) + "x") +
+        " multiple to a final-year EBITDA of " + nm(money(inputs.finalYearMetric)) + ".&rdquo;</p>";
+    } else {
+      narrative =
+        '<p>Your interviewer says: &ldquo;5-year DCF again, exit multiple this time. Current free cash flow is ' +
+        nm(money(inputs.baseCashFlow)) + " growing at " + nm(pct(inputs.cashFlowGrowth, 1)) +
+        " a year, discounted at " + nm(pct(inputs.discountRate, 1)) + ". Terminal value comes from a " +
+        nm(inputs.exitMultiple.toFixed(1) + "x") + " multiple on a final-year EBITDA of " + nm(money(inputs.finalYearMetric)) +
+        ". Then bridge to per-share — " + bridgeClause(inputs) + ".&rdquo;</p>";
     }
 
     return {
       layout: "table",
       title: subtype === "gordon" ? "DCF — Gordon Growth Terminal Value" : "DCF — Exit Multiple Terminal Value",
-      givenLines,
+      narrative,
       groups,
       checkStep: (p, key, val) => DCFEngine.checkStep(p, key, val),
       generateFollowUps: (p) => DCFEngine.generateFollowUps(p),
@@ -87,19 +117,34 @@ already "filled in" and not editable) or blank (student must fill it).
   // ---- WACC build-up --------------------------------------------------
   function waccAdapter(problem) {
     const { tier, inputs } = problem;
-    const givenLines = [
-      "Risk-free rate: " + pct(inputs.riskFreeRate, 2),
-      "Equity risk premium: " + pct(inputs.erp, 2),
-      "Pre-tax cost of debt: " + pct(inputs.costOfDebtPreTax, 2),
-      "Tax rate: " + pct(inputs.taxRate, 0),
-      "Equity value: " + money(inputs.equityValue),
-      "Debt value: " + money(inputs.debtValue),
-    ];
     const groups = [];
+    let narrative;
+
     if (tier === "easy") {
-      givenLines.unshift("Beta: " + inputs.beta.toFixed(2));
+      narrative =
+        '<p>Your interviewer says: &ldquo;Walk me through WACC. Beta is ' + nm(inputs.beta.toFixed(2)) +
+        ", the risk-free rate is " + nm(pct(inputs.riskFreeRate, 2)) + ", and the equity risk premium is " +
+        nm(pct(inputs.erp, 2)) + ". Pre-tax cost of debt is " + nm(pct(inputs.costOfDebtPreTax, 2)) + ", taxed at " +
+        nm(pct(inputs.taxRate, 0)) + ". Equity is worth " + nm(money(inputs.equityValue)) + " and debt " +
+        nm(money(inputs.debtValue)) + ".&rdquo;</p>";
+      groups.push({
+        label: "WACC build-up",
+        fields: [
+          { key: "costOfEquity", label: "Cost of Equity", unit: "", decimals: 4, given: false, isPercent: true },
+          { key: "costOfDebtAfterTax", label: "After-tax Cost of Debt", unit: "", decimals: 4, given: false, isPercent: true },
+          { key: "evWeight", label: "E / V", unit: "", decimals: 3, given: false },
+          { key: "dvWeight", label: "D / V", unit: "", decimals: 3, given: false },
+          { key: "wacc", label: "WACC", unit: "", decimals: 4, given: false, isPercent: true },
+        ],
+      });
     } else {
-      givenLines.unshift("Comparable's levered beta: " + inputs.compBeta.toFixed(2) + " at D/E " + inputs.compDE.toFixed(2));
+      narrative =
+        '<p>Your interviewer says: &ldquo;This company doesn&rsquo;t have its own trading history, so use a comparable — levered beta of ' +
+        nm(inputs.compBeta.toFixed(2)) + " at a D/E of " + nm(inputs.compDE.toFixed(2)) +
+        ". Un-lever it, then re-lever it to this company's own capital structure: equity of " + nm(money(inputs.equityValue)) +
+        " and debt of " + nm(money(inputs.debtValue)) + ". Risk-free rate is " + nm(pct(inputs.riskFreeRate, 2)) +
+        ", equity risk premium " + nm(pct(inputs.erp, 2)) + ", pre-tax cost of debt " + nm(pct(inputs.costOfDebtPreTax, 2)) +
+        ", tax rate " + nm(pct(inputs.taxRate, 0)) + ". Build up to WACC.&rdquo;</p>";
       groups.push({
         label: "Beta re-levering",
         fields: [
@@ -108,22 +153,22 @@ already "filled in" and not editable) or blank (student must fill it).
           { key: "releveredBeta", label: "Re-levered Beta", unit: "", decimals: 3, given: false },
         ],
       });
+      groups.push({
+        label: "WACC build-up",
+        fields: [
+          { key: "costOfEquity", label: "Cost of Equity", unit: "", decimals: 4, given: false, isPercent: true },
+          { key: "costOfDebtAfterTax", label: "After-tax Cost of Debt", unit: "", decimals: 4, given: false, isPercent: true },
+          { key: "evWeight", label: "E / V", unit: "", decimals: 3, given: false },
+          { key: "dvWeight", label: "D / V", unit: "", decimals: 3, given: false },
+          { key: "wacc", label: "WACC", unit: "", decimals: 4, given: false, isPercent: true },
+        ],
+      });
     }
-    groups.push({
-      label: "WACC build-up",
-      fields: [
-        { key: "costOfEquity", label: "Cost of Equity", unit: "", decimals: 4, given: false, isPercent: true },
-        { key: "costOfDebtAfterTax", label: "After-tax Cost of Debt", unit: "", decimals: 4, given: false, isPercent: true },
-        { key: "evWeight", label: "E / V", unit: "", decimals: 3, given: false },
-        { key: "dvWeight", label: "D / V", unit: "", decimals: 3, given: false },
-        { key: "wacc", label: "WACC", unit: "", decimals: 4, given: false, isPercent: true },
-      ],
-    });
 
     return {
       layout: "steplist",
       title: "WACC Build-Up",
-      givenLines,
+      narrative,
       groups,
       checkStep: (p, key, val) => WaccEngine.checkStep(p, key, val),
       generateFollowUps: (p) => WaccEngine.generateFollowUps(p),
@@ -133,11 +178,14 @@ already "filled in" and not editable) or blank (student must fill it).
   // ---- Beta un-lever / re-lever ---------------------------------------
   function betaAdapter(problem) {
     const { tier, inputs } = problem;
-    const givenLines = ["Tax rate: " + pct(inputs.taxRate, 0), "Target D/E: " + inputs.targetDE.toFixed(2)];
     const groups = [];
+    let narrative;
 
     if (tier === "easy") {
-      givenLines.unshift("Levered beta: " + inputs.leveredBeta.toFixed(2) + " at D/E " + inputs.de.toFixed(2));
+      narrative =
+        '<p>Your interviewer says: &ldquo;A comparable has a levered beta of ' + nm(inputs.leveredBeta.toFixed(2)) +
+        " at a D/E of " + nm(inputs.de.toFixed(2)) + ", taxed at " + nm(pct(inputs.taxRate, 0)) +
+        ". Un-lever that beta, then re-lever it to our target company's D/E of " + nm(inputs.targetDE.toFixed(2)) + ".&rdquo;</p>";
       groups.push({
         label: "Un-lever / re-lever",
         fields: [
@@ -146,8 +194,14 @@ already "filled in" and not editable) or blank (student must fill it).
         ],
       });
     } else {
-      inputs.comps.forEach((c, i) => {
-        givenLines.push("Comp " + (i + 1) + ": beta " + c.beta.toFixed(2) + " at D/E " + c.de.toFixed(2));
+      const c = inputs.comps;
+      narrative =
+        '<p>Your interviewer says: &ldquo;Here are three comparables: beta ' + nm(c[0].beta.toFixed(2)) +
+        " at D/E " + nm(c[0].de.toFixed(2)) + ", beta " + nm(c[1].beta.toFixed(2)) + " at D/E " + nm(c[1].de.toFixed(2)) +
+        ", and beta " + nm(c[2].beta.toFixed(2)) + " at D/E " + nm(c[2].de.toFixed(2)) + ", all taxed at " +
+        nm(pct(inputs.taxRate, 0)) + ". Un-lever each one, average the results, and re-lever to our target D/E of " +
+        nm(inputs.targetDE.toFixed(2)) + ".&rdquo;</p>";
+      inputs.comps.forEach((comp, i) => {
         groups.push({
           label: "Comp " + (i + 1),
           fields: [{ key: "unlevered_" + (i + 1), label: "Un-levered Beta", unit: "", decimals: 3, given: false }],
@@ -165,7 +219,7 @@ already "filled in" and not editable) or blank (student must fill it).
     return {
       layout: "steplist",
       title: "Beta Un-lever / Re-lever",
-      givenLines,
+      narrative,
       groups,
       checkStep: (p, key, val) => BetaEngine.checkStep(p, key, val),
       generateFollowUps: (p) => BetaEngine.generateFollowUps(p),
@@ -176,16 +230,14 @@ already "filled in" and not editable) or blank (student must fill it).
   function fcfAdapter(problem) {
     const { tier, inputs } = problem;
     const groups = [];
-    let givenLines;
+    let narrative;
 
     if (tier === "easy") {
-      givenLines = [
-        "EBITDA: " + money(inputs.ebitda),
-        "D&A: " + money(inputs.da),
-        "Tax rate: " + pct(inputs.taxRate, 0),
-        "CapEx: " + money(inputs.capex),
-        "Δ Net Working Capital: " + money(inputs.deltaNwc),
-      ];
+      narrative =
+        '<p>Your interviewer says: &ldquo;Quick one — EBITDA is ' + nm(money(inputs.ebitda)) + ", D&amp;A is " +
+        nm(money(inputs.da)) + ", taxed at " + nm(pct(inputs.taxRate, 0)) + ". CapEx is " + nm(money(inputs.capex)) +
+        " and the change in net working capital is " + nm(money(inputs.deltaNwc)) +
+        ". Walk me through Unlevered Free Cash Flow.&rdquo;</p>";
       groups.push({
         label: "Build",
         fields: [
@@ -195,13 +247,12 @@ already "filled in" and not editable) or blank (student must fill it).
         ],
       });
     } else {
-      givenLines = [
-        "Base EBITDA: " + money(inputs.baseEbitda) + " growing at " + pct(inputs.ebitdaGrowth, 1) + "/year",
-        "D&A: " + pct(inputs.daPct, 1) + " of EBITDA",
-        "CapEx: " + pct(inputs.capexPct, 1) + " of EBITDA",
-        "Δ NWC: " + pct(inputs.nwcPct, 2) + " of EBITDA",
-        "Tax rate: " + pct(inputs.taxRate, 0),
-      ];
+      narrative =
+        '<p>Your interviewer says: &ldquo;Project this three years out. EBITDA starts at ' + nm(money(inputs.baseEbitda)) +
+        ", growing " + nm(pct(inputs.ebitdaGrowth, 1)) + " a year. D&amp;A runs " + nm(pct(inputs.daPct, 1)) +
+        " of EBITDA, CapEx " + nm(pct(inputs.capexPct, 1)) + ", and the change in net working capital " +
+        nm(pct(inputs.nwcPct, 2)) + ", all taxed at " + nm(pct(inputs.taxRate, 0)) +
+        ". Build unlevered FCF for each year.&rdquo;</p>";
       for (let n = 1; n <= inputs.years; n++) {
         groups.push({
           label: "Year " + n,
@@ -221,7 +272,7 @@ already "filled in" and not editable) or blank (student must fill it).
     return {
       layout: "steplist",
       title: "Unlevered FCF Build",
-      givenLines,
+      narrative,
       groups,
       checkStep: (p, key, val) => FCFEngine.checkStep(p, key, val),
       generateFollowUps: (p) => FCFEngine.generateFollowUps(p),

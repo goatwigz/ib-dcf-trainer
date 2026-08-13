@@ -225,15 +225,25 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; }
 }
 
 .givens {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   color: var(--text);
   background: var(--bg-subtle);
-  border-radius: var(--radius);
-  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 14px 16px;
   margin: 0 0 20px;
 }
-.givens ul { margin: 0; padding-left: 18px; }
-.givens li { margin: 2px 0; font-family: var(--font-mono); font-size: 0.8125rem; }
+.givens p {
+  margin: 0;
+  font-style: italic;
+  line-height: 1.55;
+}
+.inline-num {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text);
+}
 
 /* ------------------------------------------------------------------ */
 /* Table / step-list rows — mobile-first card stack                    */

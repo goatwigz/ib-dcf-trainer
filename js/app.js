@@ -137,8 +137,7 @@
     $("#problem-prompt").textContent =
       current.adapted.title + (current.timed ? "" : " — first time seeing this type, so it's untimed.");
 
-    $("#problem-givens").innerHTML =
-      "<ul>" + current.adapted.givenLines.map((l) => "<li>" + escapeHtml(l) + "</li>").join("") + "</ul>";
+    $("#problem-givens").innerHTML = current.adapted.narrative;
 
     const tableHead = $("#table-head");
     const container = $("#problem-groups");

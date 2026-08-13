@@ -162,6 +162,17 @@ Two tiers:
       inputs.cashFlowGrowth = randStep(rng, 3, 10, 0.5) / 100;
     }
 
+    // Final-year EBITDA, given directly (not derived by the student),
+    // scaled to be plausibly larger than final-year FCF. Used as the
+    // terminal value driver for exitMultiple, and only for the
+    // terminal-value cross-check follow-up when subtype is gordon.
+    const lastCF =
+      tier === "easy"
+        ? inputs.cashFlows[inputs.cashFlows.length - 1]
+        : inputs.baseCashFlow * Math.pow(1 + inputs.cashFlowGrowth, years);
+    const scaleFactor = randInRange(rng, 1.3, 2.0);
+    inputs.finalYearMetric = Math.round(lastCF * scaleFactor);
+
     if (subtype === "gordon") {
       const maxG = tier === "easy" ? 3 : 3.5;
       const minG = tier === "easy" ? 2 : 1.5;
@@ -174,14 +185,6 @@ Two tiers:
       const exitMultiple =
         tier === "easy" ? randInt(rng, 6, 10) : randStep(rng, 6, 10, 0.5);
       inputs.exitMultiple = exitMultiple;
-      // Final-year EBITDA given directly (not derived by the student),
-      // scaled to be plausibly larger than final-year FCF.
-      const lastCF =
-        tier === "easy"
-          ? inputs.cashFlows[inputs.cashFlows.length - 1]
-          : inputs.baseCashFlow * Math.pow(1 + inputs.cashFlowGrowth, years);
-      const scaleFactor = randInRange(rng, 1.3, 2.0);
-      inputs.finalYearMetric = Math.round(lastCF * scaleFactor);
     }
 
     if (tier === "medium") {
@@ -263,14 +266,11 @@ Two tiers:
     return rebuilt.solution.enterpriseValue;
   }
 
-  function generateFollowUps(problem) {
+  function rateSensitivityFollowUp(problem) {
     const baseEV = problem.solution.enterpriseValue;
-    const followUps = [];
-
-    // Follow-up 1: discount rate +1 point
     const rUp = problem.inputs.discountRate + 0.01;
     const evRateUp = recomputeEV(problem, { discountRate: rUp });
-    followUps.push({
+    return {
       id: "rateUp1pt",
       prompt:
         "If the discount rate rises by 1.0 percentage point (to " +
@@ -279,10 +279,12 @@ Two tiers:
       correctDirection: evRateUp > baseEV ? "up" : "down",
       correctValue: evRateUp,
       tolerance: toleranceFor("enterpriseValue", evRateUp),
-    });
+    };
+  }
 
-    // Follow-up 2: terminal assumption +0.5 point
-    let evGrowthUp, growthLabel, newValueLabel;
+  function terminalAssumptionFollowUp(problem) {
+    const baseEV = problem.solution.enterpriseValue;
+    let evGrowthUp, growthLabel;
     if (problem.subtype === "gordon") {
       const gUp = problem.inputs.terminalGrowth + 0.005;
       evGrowthUp = recomputeEV(problem, { terminalGrowth: gUp });
@@ -295,40 +297,126 @@ Two tiers:
       evGrowthUp = recomputeEV(problem, { exitMultiple: mUp });
       growthLabel = "the exit multiple rises by 0.5x (to " + mUp.toFixed(1) + "x)";
     }
-    followUps.push({
+    return {
       id: "terminalAssumptionUp",
-      prompt:
-        "If " + growthLabel + ", what is the new Enterprise Value?",
+      prompt: "If " + growthLabel + ", what is the new Enterprise Value?",
       correctDirection: evGrowthUp > baseEV ? "up" : "down",
       correctValue: evGrowthUp,
       tolerance: toleranceFor("enterpriseValue", evGrowthUp),
-    });
+    };
+  }
 
-    // Follow-up 3 (medium only): which input moves EV more?
-    if (problem.tier === "medium") {
-      const rUp1 = problem.inputs.discountRate + 0.01;
-      const evRUp1 = recomputeEV(problem, { discountRate: rUp1 });
-      const deltaR = Math.abs(evRUp1 - baseEV);
+  // Which single input moves EV more: a 1-point rate rise, or an
+  // equivalent 1-point/1x terminal-assumption rise? Computed fresh each
+  // time — never assumed — since which one wins depends on the specific
+  // numbers in play.
+  function compareSensitivityFollowUp(problem) {
+    const baseEV = problem.solution.enterpriseValue;
+    const rUp1 = problem.inputs.discountRate + 0.01;
+    const evRUp1 = recomputeEV(problem, { discountRate: rUp1 });
+    const deltaR = Math.abs(evRUp1 - baseEV);
 
-      let deltaG;
-      if (problem.subtype === "gordon") {
-        const gUp1 = problem.inputs.terminalGrowth + 0.01;
-        const evGUp1 = recomputeEV(problem, { terminalGrowth: gUp1 });
-        deltaG = Math.abs(evGUp1 - baseEV);
-      } else {
-        const mUp1 = problem.inputs.exitMultiple + 1;
-        const evMUp1 = recomputeEV(problem, { exitMultiple: mUp1 });
-        deltaG = Math.abs(evMUp1 - baseEV);
-      }
+    let deltaG;
+    if (problem.subtype === "gordon") {
+      const gUp1 = problem.inputs.terminalGrowth + 0.01;
+      const evGUp1 = recomputeEV(problem, { terminalGrowth: gUp1 });
+      deltaG = Math.abs(evGUp1 - baseEV);
+    } else {
+      const mUp1 = problem.inputs.exitMultiple + 1;
+      const evMUp1 = recomputeEV(problem, { exitMultiple: mUp1 });
+      deltaG = Math.abs(evMUp1 - baseEV);
+    }
 
-      followUps.push({
-        id: "compareSensitivity",
+    return {
+      id: "compareSensitivity",
+      prompt:
+        "Which moves Enterprise Value more: a 1-point rise in the discount rate, or an equivalent 1-point/1x rise in the terminal assumption?",
+      correctAnswer: deltaR > deltaG ? "discountRate" : "terminalAssumption",
+      deltaR,
+      deltaG,
+    };
+  }
+
+  // Given the terminal value already computed, what does it imply about
+  // the "other" method's assumption? Gordon Growth problems ask for the
+  // implied exit multiple; Exit Multiple problems ask for the implied
+  // perpetuity growth rate (found by rearranging the Gordon formula for g).
+  function tvCrossCheckFollowUp(problem) {
+    const tv = problem.solution.terminalValue;
+    if (problem.subtype === "gordon") {
+      const impliedMultiple = tv / problem.inputs.finalYearMetric;
+      return {
+        id: "tvCrossCheckMultiple",
         prompt:
-          "Which moves Enterprise Value more: a 1-point rise in the discount rate, or an equivalent 1-point/1x rise in the terminal assumption?",
-        correctAnswer: deltaR > deltaG ? "discountRate" : "terminalAssumption",
-        deltaR,
-        deltaG,
-      });
+          "This terminal value was built with the Gordon Growth method. Given a final-year EBITDA of $" +
+          problem.inputs.finalYearMetric +
+          "m, what exit multiple does this terminal value imply?",
+        correctValue: impliedMultiple,
+        tolerance: 0.2,
+      };
+    }
+    const r = problem.inputs.discountRate;
+    const finalCF = problem.solution.rows[problem.solution.rows.length - 1].cashFlow;
+    const impliedGrowth = (tv * r - finalCF) / (tv + finalCF);
+    return {
+      id: "tvCrossCheckGrowth",
+      prompt:
+        "This terminal value was built with an exit multiple. Given the discount rate of " +
+        (r * 100).toFixed(1) +
+        "%, what perpetuity growth rate does this terminal value imply?",
+      correctValue: impliedGrowth,
+      tolerance: 0.001,
+    };
+  }
+
+  // Recompute the whole DCF using the mid-year discounting convention
+  // (discount factor exponent n − 0.5 instead of n, for every projection
+  // year and for the terminal value) instead of end-of-year.
+  function midYearConventionFollowUp(problem) {
+    const { discountRate: r, years } = problem.inputs;
+    const rows = problem.solution.rows;
+    const midYearDFs = [];
+    for (let n = 1; n <= years; n++) {
+      midYearDFs.push(1 / Math.pow(1 + r, n - 0.5));
+    }
+    const sumPv = rows.reduce((s, row, i) => s + row.cashFlow * midYearDFs[i], 0);
+    const pvTv = problem.solution.terminalValue * midYearDFs[midYearDFs.length - 1];
+    const evMidYear = sumPv + pvTv;
+    const baseEV = problem.solution.enterpriseValue;
+    return {
+      id: "midYearConvention",
+      prompt:
+        "If we used the mid-year discounting convention instead of end-of-year, what would the new Enterprise Value be, and does it go up or down?",
+      correctDirection: evMidYear > baseEV ? "up" : "down",
+      correctValue: evMidYear,
+      tolerance: toleranceFor("enterpriseValue", evMidYear),
+    };
+  }
+
+  function followUpBank(problem) {
+    const bank = [terminalAssumptionFollowUp, tvCrossCheckFollowUp, midYearConventionFollowUp];
+    if (problem.tier === "medium") {
+      bank.push(compareSensitivityFollowUp);
+    }
+    return bank;
+  }
+
+  // Rate sensitivity always appears first (it's the most fundamental
+  // follow-up); the rest are sampled without replacement from the bank
+  // so repeated drilling surfaces variety without ever stacking every
+  // follow-up type onto one problem. Easy tier gets 2 total, medium 3.
+  function generateFollowUps(problem, rng) {
+    const pick = rng || Math.random;
+    const followUps = [rateSensitivityFollowUp(problem)];
+    const count = problem.tier === "easy" ? 1 : 2;
+
+    const bank = followUpBank(problem);
+    for (let i = bank.length - 1; i > 0; i--) {
+      const j = Math.floor(pick() * (i + 1));
+      [bank[i], bank[j]] = [bank[j], bank[i]];
+    }
+    for (let i = 0; i < count && i < bank.length; i++) {
+      followUps.push(bank[i](problem));
     }
 
     return followUps;
@@ -343,6 +431,14 @@ Two tiers:
     generateProblem,
     checkStep,
     generateFollowUps,
+    // Individual follow-up generators, exposed for direct testing.
+    followUps: {
+      rateSensitivity: rateSensitivityFollowUp,
+      terminalAssumption: terminalAssumptionFollowUp,
+      compareSensitivity: compareSensitivityFollowUp,
+      tvCrossCheck: tvCrossCheckFollowUp,
+      midYearConvention: midYearConventionFollowUp,
+    },
     _internal: { makeRng, randStep, randInt, randInRange }, // exposed for tests only
   };
 

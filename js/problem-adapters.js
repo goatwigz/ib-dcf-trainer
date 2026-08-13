@@ -253,6 +253,17 @@ already "filled in" and not editable) or blank (student must fill it).
     throw new Error("Unknown category: " + category);
   }
 
+  // Deterministically rebuild the exact same problem from its stored
+  // (already-randomized) inputs — used to restore an in-progress session
+  // after a refresh, without needing to persist a random seed.
+  function rebuildProblem(category, subtype, tier, inputs) {
+    if (category === "dcf") return DCFEngine.buildProblem(subtype, tier, inputs);
+    if (category === "wacc") return WaccEngine.buildProblem(tier, inputs);
+    if (category === "beta") return BetaEngine.buildProblem(tier, inputs);
+    if (category === "fcf") return FCFEngine.buildProblem(tier, inputs);
+    throw new Error("Unknown category: " + category);
+  }
+
   // A stable identity for "have I seen this kind of problem before" —
   // used to decide untimed-first vs. timed-after.
   function seenKey(category, problem, tier) {
@@ -260,7 +271,7 @@ already "filled in" and not editable) or blank (student must fill it).
     return category + ":" + tier;
   }
 
-  const ProblemAdapters = { PROBLEM_TYPES, generateProblem, adapt, seenKey };
+  const ProblemAdapters = { PROBLEM_TYPES, generateProblem, adapt, seenKey, rebuildProblem };
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = ProblemAdapters;

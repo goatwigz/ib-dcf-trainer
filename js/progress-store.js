@@ -91,10 +91,14 @@ lives in localStorage on the student's device. Two keys are used:
 
   // Returns the step label(s) the student struggles with most (lowest
   // first-try accuracy among labels with a meaningful sample size).
+  // Only ever surfaces steps with genuine room to improve (accuracy
+  // below 100%) — a step the student has aced so far shouldn't show up
+  // under "room to improve" just because it's the least-worst of a
+  // small sample.
   function weakestSteps(progress, minAttempts) {
     const min = minAttempts || 3;
     const entries = Object.entries(progress.stepStats)
-      .filter(([, s]) => s.attempts >= min)
+      .filter(([, s]) => s.attempts >= min && s.correctFirstTry < s.attempts)
       .map(([label, s]) => ({ label, accuracy: s.correctFirstTry / s.attempts, attempts: s.attempts }))
       .sort((a, b) => a.accuracy - b.accuracy);
     return entries.slice(0, 3);

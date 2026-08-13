@@ -393,8 +393,52 @@ Two tiers:
     };
   }
 
+  // Genuine backsolve: given a hypothetical TARGET Enterprise Value
+  // (not the one implied by the problem's own growth/multiple
+  // assumption — e.g. "the market values this company at $X"), work
+  // backward through the PV sum to the implied terminal value, then to
+  // the implied growth rate or exit multiple. Reverses the direction of
+  // reasoning entirely, rather than just plugging in different numbers.
+  function backsolveFollowUp(problem, rng) {
+    const pick = rng || Math.random;
+    const baseEV = problem.solution.enterpriseValue;
+    const factor = 0.85 + pick() * 0.3; // target EV = 85%-115% of base EV
+    const targetEV = baseEV * factor;
+
+    const rows = problem.solution.rows;
+    const sumPv = rows.reduce((s, row) => s + row.presentValue, 0);
+    const finalDiscountFactor = rows[rows.length - 1].discountFactor;
+    const impliedPvTv = targetEV - sumPv;
+    const impliedTv = impliedPvTv / finalDiscountFactor;
+
+    if (problem.subtype === "gordon") {
+      const r = problem.inputs.discountRate;
+      const finalCF = rows[rows.length - 1].cashFlow;
+      const impliedGrowth = (impliedTv * r - finalCF) / (impliedTv + finalCF);
+      return {
+        id: "backsolveGrowth",
+        prompt:
+          "Suppose the market actually values this company at an Enterprise Value of $" +
+          targetEV.toFixed(1) +
+          "m instead. What terminal growth rate would that imply?",
+        correctValue: impliedGrowth,
+        tolerance: 0.001,
+      };
+    }
+    const impliedMultiple = impliedTv / problem.inputs.finalYearMetric;
+    return {
+      id: "backsolveMultiple",
+      prompt:
+        "Suppose the market actually values this company at an Enterprise Value of $" +
+        targetEV.toFixed(1) +
+        "m instead. What exit multiple would that imply?",
+      correctValue: impliedMultiple,
+      tolerance: 0.2,
+    };
+  }
+
   function followUpBank(problem) {
-    const bank = [terminalAssumptionFollowUp, tvCrossCheckFollowUp, midYearConventionFollowUp];
+    const bank = [terminalAssumptionFollowUp, tvCrossCheckFollowUp, midYearConventionFollowUp, backsolveFollowUp];
     if (problem.tier === "medium") {
       bank.push(compareSensitivityFollowUp);
     }
@@ -416,7 +460,7 @@ Two tiers:
       [bank[i], bank[j]] = [bank[j], bank[i]];
     }
     for (let i = 0; i < count && i < bank.length; i++) {
-      followUps.push(bank[i](problem));
+      followUps.push(bank[i](problem, pick));
     }
 
     return followUps;
@@ -438,6 +482,7 @@ Two tiers:
       compareSensitivity: compareSensitivityFollowUp,
       tvCrossCheck: tvCrossCheckFollowUp,
       midYearConvention: midYearConventionFollowUp,
+      backsolve: backsolveFollowUp,
     },
     _internal: { makeRng, randStep, randInt, randInRange }, // exposed for tests only
   };

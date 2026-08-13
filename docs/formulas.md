@@ -122,6 +122,20 @@ problem. Easy tier gets 2 follow-ups total; medium gets 3.
    answer is whichever produces the bigger dollar swing for *that*
    specific problem's numbers — this is calculated fresh each time, not
    assumed.
+6. **Backsolve** — a genuine reverse-direction question, not just
+   another forward recompute. Given a hypothetical *target* Enterprise
+   Value (85%–115% of the problem's own EV, e.g. "the market actually
+   values this company at $X"), work backward:
+   - Implied PV of Terminal Value = Target EV − Σ(PV of cash flows)
+   - Implied Terminal Value = Implied PV of TV ÷ final-year discount factor
+   - Gordon Growth problems: implied growth rate, via the same
+     rearranged formula as the terminal value cross-check above
+   - Exit Multiple problems: implied exit multiple = Implied TV ÷
+     final-year EBITDA
+
+   A stress test confirmed this stays well-behaved (implied growth rate
+   never approaches the discount rate) across 2,000 randomly generated
+   problems checked at 11 points across the full target range.
 
 ---
 
@@ -143,6 +157,12 @@ flows given directly as $100m / $110m / $120m.
 **Follow-up check:**
 - Discount rate → 11%: new EV = **1,325.19** (down $178.94m) ✓ direction down
 - Terminal growth → 3.0%: new EV = **1,598.58** (up $94.45m) ✓ direction up
+- **Backsolve:** if the market values this company at $1,650.00m instead
+  (vs. the base EV of $1,504.13m) — implied PV of TV = 1,650.00 − 271.98
+  = 1,378.02; implied TV = 1,378.02 ÷ 0.7513 = 1,834.15; implied g =
+  (1,834.15×0.10 − 120) ÷ (1,834.15 + 120) = **3.25%** (up from the
+  original 2.5%, which makes sense — a higher market value implies the
+  market is pricing in faster long-term growth)
 
 ## Worked Example 2 — Medium tier, Exit Multiple (with equity bridge)
 
@@ -188,6 +208,11 @@ cash & equivalents = $70m, shares outstanding = 100m.
   1/1.10^0.5, 1/1.10^1.5, 1/1.10^2.5 = 0.9535, 0.8668, 0.7880.
   New EV = **1,577.55** (up $73.42m from the end-of-year EV of 1,504.13,
   as expected — mid-year discounting always increases value)
+- **Backsolve (Example 2, Exit Multiple):** if the market values this
+  company at $2,500.00m instead (vs. the base EV of $2,686.74m) —
+  implied TV = (2,500.00 − 908.10) ÷ 0.6352 = 2,506.03; implied multiple
+  = 2,506.03 ÷ 350 = **7.16x** (down from the original 8.0x, consistent
+  with a lower market value implying a lower exit multiple)
 
 ---
 
@@ -228,6 +253,11 @@ of debt = 6.0%, tax rate = 25%, equity value = $800m, debt value = $200m.
 
 **Follow-up:** beta rises to 1.4 → Cost of Equity = 11.20% → new WACC =
 0.80×11.20% + 0.20×4.50% = **9.86%** (up 0.88pt) ✓ direction up
+
+**Backsolve:** suppose you're told WACC must be 10.00% instead, holding
+cost of debt and capital structure fixed — required Cost of Equity =
+(10.00% − 0.20×4.50%) ÷ 0.80 = **11.375%**, so required beta =
+(11.375% − 3.5%) ÷ 5.5% = **1.432** (up from the original 1.2)
 
 ### Worked Example — Medium (with beta re-levering)
 
@@ -271,6 +301,11 @@ the target's capital structure.
 
 - Un-levered Beta = 1.4 ÷ [1 + (1−0.25)×0.6] = 1.4 ÷ 1.45 = **0.9655**
 - Re-levered Beta = 0.9655 × [1 + (1−0.25)×1.0] = 0.9655 × 1.75 = **1.6897**
+
+**Backsolve:** suppose you want the deal valued using a relevered beta
+of 1.90 instead — required target D/E = (1.90 ÷ 0.9655 − 1) ÷ (1−0.25)
+= **1.290** (up from the original target D/E of 1.0, which makes sense
+— a higher desired beta requires more leverage)
 
 ### Worked Example — Medium (3 comps)
 
@@ -328,6 +363,11 @@ it always increases unlevered FCF**, even though intuition might say
 "bigger expense, less cash" — this is exactly the kind of mechanism a
 real interview follow-up is testing.
 
+**Backsolve:** suppose the target Unlevered FCF is $220m instead —
+required EBITDA = 30 + (220 − 30 + 25 + 8) ÷ (1−0.25) = 30 + 297.33 =
+**$327.33m** (up from the original $300m, as expected for a higher FCF
+target)
+
 ### Worked Example — Medium (3-year)
 
 **Given:** base EBITDA = $250m growing at 7%/year, tax rate = 24%,
@@ -341,13 +381,17 @@ D&A = 10% of EBITDA, CapEx = 9% of EBITDA, Δ NWC = 1.5% of EBITDA.
 
 ---
 
-Every worked example above was computed two ways independently — once
-by hand following the formulas, once by a separate Python reference
-script — and the results matched to the cent (or, for beta values, to
-four decimal places). The actual JavaScript engine files
-(`js/dcf-engine.js`, `js/wacc-engine.js`, `js/beta-engine.js`,
-`js/fcf-engine.js`) were then run through an automated test suite
-(`node js/test-engine.js`) that checks every one of these worked
-examples against real engine output, plus a stress test of 5,000
-randomly generated problems across every sub-type and tier checking for
-crashes or invalid numbers. All tests pass as of this writing.
+Every worked example above — including every backsolve — was computed
+two ways independently: once by hand following the formulas, once by a
+separate Python reference script, with the results matching to the
+cent (or, for beta values, to four decimal places). Each backsolved
+value was also sanity-checked by plugging it back into the forward
+formula and confirming it reproduces the target exactly. The actual
+JavaScript engine files (`js/dcf-engine.js`, `js/wacc-engine.js`,
+`js/beta-engine.js`, `js/fcf-engine.js`) were then run through an
+automated test suite (`node js/test-engine.js`) that checks every one
+of these worked examples against real engine output, plus stress tests
+covering roughly 9,000 randomly generated problems and backsolve checks
+across every sub-type and tier, watching for crashes, invalid numbers,
+or degenerate results (e.g. an implied growth rate creeping toward the
+discount rate). All tests pass as of this writing.

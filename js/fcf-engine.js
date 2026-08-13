@@ -96,35 +96,71 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
     return { correct, correctValue, tolerance };
   }
 
-  function generateFollowUps(problem) {
-    const followUps = [];
-
+  function sensitivityFollowUp(problem) {
     if (problem.tier === "easy") {
       const daUp = problem.inputs.da * 1.15;
       const rebuilt = buildProblem("easy", Object.assign({}, problem.inputs, { da: daUp }));
-      followUps.push({
+      return {
         id: "daUp",
         prompt: "If D&A rises by 15% (to " + daUp.toFixed(1) + "), what is the new Unlevered FCF, and does it go up or down? (Think about the tax shield.)",
         correctDirection: rebuilt.solution.fcf > problem.solution.fcf ? "up" : "down",
         correctValue: rebuilt.solution.fcf,
         tolerance: toleranceFor(rebuilt.solution.fcf),
-      });
-    } else {
-      const capexUp = problem.inputs.capexPct + 0.02;
-      const rebuilt = buildProblem("medium", Object.assign({}, problem.inputs, { capexPct: capexUp }));
-      followUps.push({
-        id: "capexUp",
-        prompt: "If CapEx rises by 2 percentage points of EBITDA (to " + (capexUp * 100).toFixed(1) + "%) across all years, what is the new total 3-year Unlevered FCF?",
-        correctDirection: rebuilt.solution.totalFcf > problem.solution.totalFcf ? "up" : "down",
-        correctValue: rebuilt.solution.totalFcf,
-        tolerance: toleranceFor(rebuilt.solution.totalFcf),
-      });
+      };
     }
-
-    return followUps;
+    const capexUp = problem.inputs.capexPct + 0.02;
+    const rebuilt = buildProblem("medium", Object.assign({}, problem.inputs, { capexPct: capexUp }));
+    return {
+      id: "capexUp",
+      prompt: "If CapEx rises by 2 percentage points of EBITDA (to " + (capexUp * 100).toFixed(1) + "%) across all years, what is the new total 3-year Unlevered FCF?",
+      correctDirection: rebuilt.solution.totalFcf > problem.solution.totalFcf ? "up" : "down",
+      correctValue: rebuilt.solution.totalFcf,
+      tolerance: toleranceFor(rebuilt.solution.totalFcf),
+    };
   }
 
-  const FCFEngine = { buildProblem, generateProblem, checkStep, generateFollowUps };
+  // Backsolve: given a target FCF (e.g. "we need at least $X of FCF to
+  // hit our leverage covenant"), work backward to the required EBITDA.
+  // Easy tier: direct algebraic inverse (D&A/CapEx/ΔNWC are fixed $).
+  // Medium tier: FCF is linear in base EBITDA once daPct/capexPct/nwcPct
+  // are fixed, so the same kind of inverse applies to the 3-year total.
+  function backsolveEbitdaFollowUp(problem, targetFcf) {
+    if (problem.tier === "easy") {
+      const { da, capex, deltaNwc, taxRate } = problem.inputs;
+      const t = targetFcf !== undefined ? targetFcf : problem.solution.fcf * (0.9 + Math.random() * 0.25);
+      const requiredEbitda = da + (t - da + capex + deltaNwc) / (1 - taxRate);
+      return {
+        id: "backsolveEbitda",
+        prompt: "Suppose the target Unlevered FCF is $" + t.toFixed(1) + "m instead. What EBITDA would that require?",
+        correctValue: requiredEbitda,
+        tolerance: toleranceFor(requiredEbitda),
+      };
+    }
+    const { daPct, capexPct, nwcPct, taxRate, ebitdaGrowth, years } = problem.inputs;
+    const coefficient = (1 - daPct) * (1 - taxRate) + daPct - capexPct - nwcPct;
+    let growthSum = 0;
+    for (let n = 1; n <= years; n++) growthSum += Math.pow(1 + ebitdaGrowth, n);
+    const t = targetFcf !== undefined ? targetFcf : problem.solution.totalFcf * (0.9 + Math.random() * 0.25);
+    const requiredBaseEbitda = t / (coefficient * growthSum);
+    return {
+      id: "backsolveEbitda",
+      prompt: "Suppose the target total 3-year Unlevered FCF is $" + t.toFixed(1) + "m instead. What base-year EBITDA would that require?",
+      correctValue: requiredBaseEbitda,
+      tolerance: toleranceFor(requiredBaseEbitda),
+    };
+  }
+
+  function generateFollowUps(problem) {
+    return [sensitivityFollowUp(problem), backsolveEbitdaFollowUp(problem)];
+  }
+
+  const FCFEngine = {
+    buildProblem,
+    generateProblem,
+    checkStep,
+    generateFollowUps,
+    followUps: { sensitivity: sensitivityFollowUp, backsolveEbitda: backsolveEbitdaFollowUp },
+  };
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = FCFEngine;

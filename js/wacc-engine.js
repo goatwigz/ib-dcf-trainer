@@ -84,36 +84,60 @@ Medium: same, but the beta must first be un-levered from a comparable
     return { correct, correctValue, tolerance };
   }
 
-  function generateFollowUps(problem) {
+  function sensitivityFollowUp(problem) {
     const baseWacc = problem.solution.wacc;
-    const followUps = [];
-
     if (problem.tier === "easy") {
       const betaUp = problem.inputs.beta + 0.2;
       const rebuilt = buildProblem("easy", Object.assign({}, problem.inputs, { beta: betaUp }));
-      followUps.push({
+      return {
         id: "betaUp",
         prompt: "If the company's beta rises by 0.2 (to " + betaUp.toFixed(2) + "), what is the new WACC, and does it go up or down?",
         correctDirection: rebuilt.solution.wacc > baseWacc ? "up" : "down",
         correctValue: rebuilt.solution.wacc,
         tolerance: 0.001,
-      });
-    } else {
-      const taxUp = problem.inputs.taxRate + 0.03;
-      const rebuilt = buildProblem("medium", Object.assign({}, problem.inputs, { taxRate: taxUp }));
-      followUps.push({
-        id: "taxUp",
-        prompt: "If the tax rate rises by 3 percentage points (to " + (taxUp * 100).toFixed(1) + "%), what is the new WACC, and does it go up or down?",
-        correctDirection: rebuilt.solution.wacc > baseWacc ? "up" : "down",
-        correctValue: rebuilt.solution.wacc,
-        tolerance: 0.001,
-      });
+      };
     }
-
-    return followUps;
+    const taxUp = problem.inputs.taxRate + 0.03;
+    const rebuilt = buildProblem("medium", Object.assign({}, problem.inputs, { taxRate: taxUp }));
+    return {
+      id: "taxUp",
+      prompt: "If the tax rate rises by 3 percentage points (to " + (taxUp * 100).toFixed(1) + "%), what is the new WACC, and does it go up or down?",
+      correctDirection: rebuilt.solution.wacc > baseWacc ? "up" : "down",
+      correctValue: rebuilt.solution.wacc,
+      tolerance: 0.001,
+    };
   }
 
-  const WaccEngine = { buildProblem, generateProblem, checkStep, generateFollowUps };
+  // Backsolve: given a target WACC (not the one this problem's own
+  // inputs produce — e.g. "management says WACC is X%"), work backward
+  // to the required cost of equity, then the required beta.
+  function backsolveBetaFollowUp(problem, targetWacc) {
+    const baseWacc = problem.solution.wacc;
+    const t = targetWacc !== undefined ? targetWacc : baseWacc * (0.9 + Math.random() * 0.2);
+    const requiredCoE = (t - problem.solution.dvWeight * problem.solution.costOfDebtAfterTax) / problem.solution.evWeight;
+    const requiredBeta = (requiredCoE - problem.inputs.riskFreeRate) / problem.inputs.erp;
+    return {
+      id: "backsolveBeta",
+      prompt:
+        "Suppose you're told WACC must be " +
+        (t * 100).toFixed(2) +
+        "% instead. Holding the cost of debt and capital structure fixed, what beta would that require?",
+      correctValue: requiredBeta,
+      tolerance: 0.02,
+    };
+  }
+
+  function generateFollowUps(problem) {
+    return [sensitivityFollowUp(problem), backsolveBetaFollowUp(problem)];
+  }
+
+  const WaccEngine = {
+    buildProblem,
+    generateProblem,
+    checkStep,
+    generateFollowUps,
+    followUps: { sensitivity: sensitivityFollowUp, backsolveBeta: backsolveBetaFollowUp },
+  };
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = WaccEngine;

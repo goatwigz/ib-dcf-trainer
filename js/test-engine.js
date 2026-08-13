@@ -65,6 +65,10 @@ if (fu1MidYear.correctDirection !== "up") {
   console.log("OK   mid-year direction: up");
 }
 
+// Backsolve: target EV of 1650 -> implied growth rate (Python-verified: 0.032451)
+const fu1Backsolve = DCFEngine.followUps.backsolve(p1, () => (1650.0 / p1.solution.enterpriseValue - 0.85) / 0.3);
+approxEqual(fu1Backsolve.correctValue, 0.032451, 0.00001, "Backsolve implied growth rate (target EV 1650)");
+
 // ---- Example 2: Medium / Exit Multiple + Equity Bridge ----
 const p2 = DCFEngine.buildProblem("exitMultiple", "medium", {
   years: 5,
@@ -122,6 +126,15 @@ approxEqual(
   0.015526,
   0.00001,
   "TV cross-check implied growth rate"
+);
+
+// Backsolve: target EV of 2500 -> implied multiple (Python-verified: 7.160090x)
+const p2BacksolvePick = (2500.0 / p2.solution.enterpriseValue - 0.85) / 0.3;
+approxEqual(
+  DCFEngine.followUps.backsolve(p2, () => p2BacksolvePick).correctValue,
+  7.160090,
+  0.0001,
+  "Backsolve implied exit multiple (target EV 2500)"
 );
 
 // Sampling wrapper: rate sensitivity always first, correct count, no duplicates
@@ -183,6 +196,19 @@ for (const subtype of subtypes) {
           console.error(`FAIL non-finite follow-up for ${subtype}/${tier} seed=${i}`);
         }
       }
+      // Backsolve specifically, across the full 0.85-1.15 target range,
+      // guarding against a degenerate implied growth rate approaching r.
+      for (let f = 0; f <= 10; f++) {
+        const pick = 0.85 + (f / 10) * 0.3;
+        const bs = DCFEngine.followUps.backsolve(problem, () => (pick - 0.85) / 0.3);
+        if (!Number.isFinite(bs.correctValue)) {
+          randomFailures++;
+          console.error(`FAIL non-finite backsolve for ${subtype}/${tier} seed=${i} pick=${pick}`);
+        } else if (subtype === "gordon" && bs.correctValue >= problem.inputs.discountRate - 0.001) {
+          randomFailures++;
+          console.error(`FAIL backsolve implied growth too close to r for ${subtype}/${tier} seed=${i}: g=${bs.correctValue} r=${problem.inputs.discountRate}`);
+        }
+      }
     }
   }
 }
@@ -212,6 +238,9 @@ approxEqual(wEasyFU.correctValue, 0.0986, 0.000001, "WACC follow-up (beta+0.2)")
 if (wEasyFU.correctDirection !== "up") { failures++; console.error("FAIL WACC easy follow-up direction"); }
 else console.log("OK   WACC easy follow-up direction: up");
 
+// Backsolve: target WACC 0.10 -> required beta (Python-verified: 1.431818)
+approxEqual(WaccEngine.followUps.backsolveBeta(wEasy, 0.10).correctValue, 1.431818, 0.000001, "WACC backsolve required beta");
+
 console.log("\n=== WACC: Medium (beta relever) ===");
 const wMed = WaccEngine.buildProblem("medium", {
   riskFreeRate: 0.04, erp: 0.06, compBeta: 1.5, compDE: 0.8, taxRate: 0.24,
@@ -231,9 +260,11 @@ for (const tier of ["easy", "medium"]) {
   for (let i = 0; i < 500; i++) {
     const p = WaccEngine.generateProblem(tier, i * 5147 + 3);
     if (!Number.isFinite(p.solution.wacc)) { waccRandomFailures++; console.error(`FAIL non-finite WACC ${tier} seed=${i}`); }
+    const bs = WaccEngine.followUps.backsolveBeta(p, p.solution.wacc * 1.08);
+    if (!Number.isFinite(bs.correctValue)) { waccRandomFailures++; console.error(`FAIL non-finite WACC backsolve ${tier} seed=${i}`); }
   }
 }
-if (waccRandomFailures === 0) console.log("OK   All 1000 randomly generated WACC problems produced finite results");
+if (waccRandomFailures === 0) console.log("OK   All 1000 randomly generated WACC problems (+ backsolve) produced finite results");
 else failures += waccRandomFailures;
 
 // =========================================================================
@@ -245,6 +276,9 @@ console.log("\n=== Beta: Easy ===");
 const bEasy = BetaEngine.buildProblem("easy", { leveredBeta: 1.4, de: 0.6, taxRate: 0.25, targetDE: 1.0 });
 approxEqual(bEasy.solution.unleveredBeta, 0.965517, 0.000001, "Unlevered Beta");
 approxEqual(bEasy.solution.releveredBeta, 1.689655, 0.000001, "Relevered Beta");
+
+// Backsolve: target relevered beta 1.9 -> required D/E (Python-verified: 1.290476)
+approxEqual(BetaEngine.followUps.backsolveDE(bEasy, 1.9).correctValue, 1.290476, 0.000001, "Beta backsolve required D/E");
 
 console.log("\n=== Beta: Medium (3 comps) ===");
 const bMed = BetaEngine.buildProblem("medium", {
@@ -265,11 +299,15 @@ let betaRandomFailures = 0;
 for (const tier of ["easy", "medium"]) {
   for (let i = 0; i < 500; i++) {
     const p = BetaEngine.generateProblem(tier, i * 6247 + 11);
-    const val = tier === "easy" ? p.solution.releveredBeta : p.solution.releveredBeta;
-    if (!Number.isFinite(val)) { betaRandomFailures++; console.error(`FAIL non-finite beta ${tier} seed=${i}`); }
+    if (!Number.isFinite(p.solution.releveredBeta)) { betaRandomFailures++; console.error(`FAIL non-finite beta ${tier} seed=${i}`); }
+    const bs = BetaEngine.followUps.backsolveDE(p, p.solution.releveredBeta * 1.15);
+    if (!Number.isFinite(bs.correctValue) || bs.correctValue < 0) {
+      betaRandomFailures++;
+      console.error(`FAIL invalid Beta backsolve D/E ${tier} seed=${i}: ${bs.correctValue}`);
+    }
   }
 }
-if (betaRandomFailures === 0) console.log("OK   All 1000 randomly generated Beta problems produced finite results");
+if (betaRandomFailures === 0) console.log("OK   All 1000 randomly generated Beta problems (+ backsolve) produced finite, non-negative results");
 else failures += betaRandomFailures;
 
 // =========================================================================
@@ -282,6 +320,10 @@ const fEasy = FCFEngine.buildProblem("easy", { taxRate: 0.25, ebitda: 300, da: 3
 approxEqual(fEasy.solution.ebit, 270, 0.0001, "EBIT");
 approxEqual(fEasy.solution.nopat, 202.5, 0.0001, "NOPAT");
 approxEqual(fEasy.solution.fcf, 199.5, 0.0001, "Unlevered FCF");
+
+// Backsolve: target FCF 220 -> required EBITDA (Python-verified: 327.333333)
+approxEqual(FCFEngine.followUps.backsolveEbitda(fEasy, 220.0).correctValue, 327.333333, 0.0001, "FCF backsolve required EBITDA");
+
 const fEasyFU = FCFEngine.generateFollowUps(fEasy)[0];
 approxEqual(fEasyFU.correctValue, 200.625, 0.0001, "FCF follow-up (D&A+15%)");
 if (fEasyFU.correctDirection !== "up") { failures++; console.error("FAIL FCF easy follow-up direction (expected up, tax shield)"); }
@@ -295,6 +337,14 @@ approxEqual(fMed.solution.years[0].ebitda, 267.5, 0.0001, "Year1 EBITDA");
 approxEqual(fMed.solution.years[0].fcf, 181.6325, 0.0005, "Year1 FCF");
 approxEqual(fMed.solution.years[1].fcf, 194.3468, 0.0005, "Year2 FCF");
 approxEqual(fMed.solution.years[2].fcf, 207.9510, 0.0005, "Year3 FCF");
+
+// Backsolve (medium, no fixed Python reference): round-trip check —
+// solve for required base EBITDA given a target total FCF, then plug it
+// back into buildProblem and confirm the forward-computed total matches.
+const fMedTargetFcf = 650.0;
+const fMedBacksolve = FCFEngine.followUps.backsolveEbitda(fMed, fMedTargetFcf);
+const fMedRebuilt = FCFEngine.buildProblem("medium", Object.assign({}, fMed.inputs, { baseEbitda: fMedBacksolve.correctValue }));
+approxEqual(fMedRebuilt.solution.totalFcf, fMedTargetFcf, 0.01, "FCF medium backsolve round-trip (rebuilt totalFcf == target)");
 
 let fcfRandomFailures = 0;
 for (const tier of ["easy", "medium"]) {

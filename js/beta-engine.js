@@ -84,36 +84,65 @@ Medium: three comparables, unlever each, average, then relever once.
     return { correct, correctValue, tolerance };
   }
 
-  function generateFollowUps(problem) {
-    const followUps = [];
-
+  function sensitivityFollowUp(problem) {
     if (problem.tier === "easy") {
       const newTargetDE = problem.inputs.targetDE + 0.3;
       const rebuilt = buildProblem("easy", Object.assign({}, problem.inputs, { targetDE: newTargetDE }));
-      followUps.push({
+      return {
         id: "targetDEUp",
         prompt: "If the target company's D/E ratio rises to " + newTargetDE.toFixed(2) + ", what is the new relevered beta, and does it go up or down?",
         correctDirection: rebuilt.solution.releveredBeta > problem.solution.releveredBeta ? "up" : "down",
         correctValue: rebuilt.solution.releveredBeta,
         tolerance: 0.02,
-      });
-    } else {
-      const newComps = problem.inputs.comps.map((c) => Object.assign({}, c));
-      newComps[1].de = newComps[1].de + 0.4;
-      const rebuilt = buildProblem("medium", Object.assign({}, problem.inputs, { comps: newComps }));
-      followUps.push({
-        id: "comp2DEUp",
-        prompt: "If Comp 2's D/E ratio is corrected to " + newComps[1].de.toFixed(2) + ", what is the new average unlevered beta, and does it go up or down?",
-        correctDirection: rebuilt.solution.averageUnleveredBeta > problem.solution.averageUnleveredBeta ? "up" : "down",
-        correctValue: rebuilt.solution.averageUnleveredBeta,
-        tolerance: 0.02,
-      });
+      };
     }
-
-    return followUps;
+    const newComps = problem.inputs.comps.map((c) => Object.assign({}, c));
+    newComps[1].de = newComps[1].de + 0.4;
+    const rebuilt = buildProblem("medium", Object.assign({}, problem.inputs, { comps: newComps }));
+    return {
+      id: "comp2DEUp",
+      prompt: "If Comp 2's D/E ratio is corrected to " + newComps[1].de.toFixed(2) + ", what is the new average unlevered beta, and does it go up or down?",
+      correctDirection: rebuilt.solution.averageUnleveredBeta > problem.solution.averageUnleveredBeta ? "up" : "down",
+      correctValue: rebuilt.solution.averageUnleveredBeta,
+      tolerance: 0.02,
+    };
   }
 
-  const BetaEngine = { buildProblem, generateProblem, checkStep, generateFollowUps };
+  // Backsolve: given a target relevered beta (e.g. "we want this deal
+  // valued using a beta of X"), work backward to the required target
+  // D/E ratio. Target is always generated above the unlevered beta
+  // (which is the floor at D/E = 0), so the required D/E is always
+  // well-defined and non-negative.
+  function backsolveDEFollowUp(problem, targetRelevered) {
+    const unlevered = problem.tier === "easy" ? problem.solution.unleveredBeta : problem.solution.averageUnleveredBeta;
+    const currentRelevered = problem.solution.releveredBeta;
+    const t =
+      targetRelevered !== undefined
+        ? targetRelevered
+        : unlevered + (currentRelevered - unlevered) * (0.7 + Math.random() * 0.8);
+    const requiredDE = (t / unlevered - 1) / (1 - problem.inputs.taxRate);
+    return {
+      id: "backsolveDE",
+      prompt:
+        "Suppose you want the deal valued using a relevered beta of " +
+        t.toFixed(3) +
+        " instead. What target D/E ratio would that require?",
+      correctValue: requiredDE,
+      tolerance: 0.03,
+    };
+  }
+
+  function generateFollowUps(problem) {
+    return [sensitivityFollowUp(problem), backsolveDEFollowUp(problem)];
+  }
+
+  const BetaEngine = {
+    buildProblem,
+    generateProblem,
+    checkStep,
+    generateFollowUps,
+    followUps: { sensitivity: sensitivityFollowUp, backsolveDE: backsolveDEFollowUp },
+  };
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = BetaEngine;

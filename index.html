@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DCF Practice Drills — Investment Banking Interview Prep</title>
+<meta name="description" content="Free, no-login DCF (Discounted Cash Flow) practice drills for investment banking interview prep. Randomized numbers every time, step-by-step table checking, and realistic follow-up questions." />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <h1>DCF Drills</h1>
+    <p class="tagline">Investment banking interview practice — not a valuation calculator.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- SETUP -->
+  <section id="setup-section" aria-labelledby="setup-heading">
+    <h2 id="setup-heading">Choose a difficulty</h2>
+    <p class="intro-line">Each problem uses fresh, randomized numbers. Fill in the table cell by cell — each entry is checked as you go — then answer 1&ndash;3 follow-up questions.</p>
+
+    <div class="tier-choice" role="radiogroup" aria-label="Difficulty tier">
+      <button type="button" class="tier-btn" data-tier="easy" role="radio" aria-checked="true">
+        <span class="tier-name">Easy</span>
+        <span class="tier-desc">3 years, cash flows given, Gordon Growth terminal value</span>
+      </button>
+      <button type="button" class="tier-btn" data-tier="medium" role="radio" aria-checked="false">
+        <span class="tier-name">Medium</span>
+        <span class="tier-desc">5 years, derive cash flows, full equity bridge</span>
+      </button>
+    </div>
+
+    <button type="button" id="start-btn" class="btn btn-primary">Start drilling</button>
+  </section>
+
+  <!-- ACTIVE PROBLEM -->
+  <section id="problem-section" hidden aria-labelledby="problem-heading">
+    <div class="problem-topbar">
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="topbar-right">
+        <span id="timer" class="timer" hidden aria-live="off">00:00</span>
+      </div>
+    </div>
+
+    <h2 id="problem-heading" class="sr-only">Current problem</h2>
+    <p id="problem-prompt" class="problem-prompt"></p>
+    <div id="problem-givens" class="givens"></div>
+
+    <div id="table-wrap" class="table-wrap">
+      <div class="table-head" aria-hidden="true">
+        <span>Year</span><span>Cash Flow ($m)</span><span>Discount Factor</span><span>Present Value ($m)</span>
+      </div>
+      <div id="table-rows" role="table" aria-label="Cash flow projection table"></div>
+    </div>
+
+    <div id="summary-rows" class="summary-rows"></div>
+
+    <div id="step-feedback" class="step-feedback" aria-live="polite"></div>
+  </section>
+
+  <!-- FOLLOW-UPS -->
+  <section id="followup-section" hidden aria-labelledby="followup-heading">
+    <h2 id="followup-heading">Follow-up</h2>
+    <p id="followup-prompt" class="followup-prompt"></p>
+    <div id="followup-inputs" class="followup-inputs"></div>
+    <button type="button" id="followup-submit" class="btn btn-primary">Check answer</button>
+    <div id="followup-feedback" class="step-feedback" aria-live="polite"></div>
+  </section>
+
+  <!-- SELF-EXPLAIN -->
+  <section id="explain-section" hidden aria-labelledby="explain-heading">
+    <h2 id="explain-heading">Explain your reasoning</h2>
+    <p class="hint-text">Optional, not graded &mdash; just narrate your logic in a line, the way you'd talk through it in a real interview.</p>
+    <label for="explain-box" class="sr-only">Your reasoning</label>
+    <textarea id="explain-box" rows="2" placeholder="e.g. Discounted each year's cash flow back at the WACC, then added the discounted terminal value..."></textarea>
+    <button type="button" id="explain-continue" class="btn btn-primary">Continue</button>
+  </section>
+
+  <!-- SESSION SUMMARY -->
+  <section id="summary-section" hidden aria-labelledby="summary-heading">
+    <h2 id="summary-heading">Session summary</h2>
+    <div id="summary-stats" class="stats-row"></div>
+    <div class="summary-actions">
+      <button type="button" id="continue-session-btn" class="btn btn-primary">Keep going</button>
+      <button type="button" id="end-session-btn" class="btn btn-secondary">End session</button>
+    </div>
+  </section>
+
+  <!-- persistent small stats row, visible once any progress exists -->
+  <div id="stats-strip" class="stats-strip" hidden></div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="disclaimer">Independent educational practice tool. Not affiliated with any bank, or with WSO, BIWS, M&amp;I, or any other prep platform. Doesn't guarantee interview outcomes.</p>
+    <p class="privacy-note">No accounts, no personal data collected. Progress is stored locally on your device only. Anonymous usage analytics only.</p>
+  </div>
+</footer>
+
+<script src="js/dcf-engine.js"></script>
+<script src="js/progress-store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

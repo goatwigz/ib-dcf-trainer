@@ -132,8 +132,8 @@ already "filled in" and not editable) or blank (student must fill it).
         fields: [
           { key: "costOfEquity", label: "Cost of Equity", unit: "", decimals: 4, given: false, isPercent: true },
           { key: "costOfDebtAfterTax", label: "After-tax Cost of Debt", unit: "", decimals: 4, given: false, isPercent: true },
-          { key: "evWeight", label: "E / V", unit: "", decimals: 3, given: false },
-          { key: "dvWeight", label: "D / V", unit: "", decimals: 3, given: false },
+          { key: "evWeight", label: "E / V", unit: "", decimals: 1, given: false, isPercent: true },
+          { key: "dvWeight", label: "D / V", unit: "", decimals: 1, given: false, isPercent: true },
           { key: "wacc", label: "WACC", unit: "", decimals: 4, given: false, isPercent: true },
         ],
       });
@@ -158,8 +158,8 @@ already "filled in" and not editable) or blank (student must fill it).
         fields: [
           { key: "costOfEquity", label: "Cost of Equity", unit: "", decimals: 4, given: false, isPercent: true },
           { key: "costOfDebtAfterTax", label: "After-tax Cost of Debt", unit: "", decimals: 4, given: false, isPercent: true },
-          { key: "evWeight", label: "E / V", unit: "", decimals: 3, given: false },
-          { key: "dvWeight", label: "D / V", unit: "", decimals: 3, given: false },
+          { key: "evWeight", label: "E / V", unit: "", decimals: 1, given: false, isPercent: true },
+          { key: "dvWeight", label: "D / V", unit: "", decimals: 1, given: false, isPercent: true },
           { key: "wacc", label: "WACC", unit: "", decimals: 4, given: false, isPercent: true },
         ],
       });

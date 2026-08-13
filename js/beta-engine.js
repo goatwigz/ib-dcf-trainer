@@ -93,6 +93,7 @@ Medium: three comparables, unlever each, average, then relever once.
         prompt: "If the target company's D/E ratio rises to " + newTargetDE.toFixed(2) + ", what is the new relevered beta, and does it go up or down?",
         correctDirection: rebuilt.solution.releveredBeta > problem.solution.releveredBeta ? "up" : "down",
         correctValue: rebuilt.solution.releveredBeta,
+        valueKind: "ratio",
         tolerance: 0.02,
       };
     }
@@ -104,6 +105,7 @@ Medium: three comparables, unlever each, average, then relever once.
       prompt: "If Comp 2's D/E ratio is corrected to " + newComps[1].de.toFixed(2) + ", what is the new average unlevered beta, and does it go up or down?",
       correctDirection: rebuilt.solution.averageUnleveredBeta > problem.solution.averageUnleveredBeta ? "up" : "down",
       correctValue: rebuilt.solution.averageUnleveredBeta,
+      valueKind: "ratio",
       tolerance: 0.02,
     };
   }
@@ -128,6 +130,7 @@ Medium: three comparables, unlever each, average, then relever once.
         t.toFixed(3) +
         " instead. What target D/E ratio would that require?",
       correctValue: requiredDE,
+      valueKind: "ratio",
       tolerance: 0.03,
     };
   }

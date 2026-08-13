@@ -278,6 +278,7 @@ Two tiers:
         "%), what is the new Enterprise Value, and does it go up or down?",
       correctDirection: evRateUp > baseEV ? "up" : "down",
       correctValue: evRateUp,
+      valueKind: "dollar",
       tolerance: toleranceFor("enterpriseValue", evRateUp),
     };
   }
@@ -302,6 +303,7 @@ Two tiers:
       prompt: "If " + growthLabel + ", what is the new Enterprise Value?",
       correctDirection: evGrowthUp > baseEV ? "up" : "down",
       correctValue: evGrowthUp,
+      valueKind: "dollar",
       tolerance: toleranceFor("enterpriseValue", evGrowthUp),
     };
   }
@@ -332,6 +334,11 @@ Two tiers:
       prompt:
         "Which moves Enterprise Value more: a 1-point rise in the discount rate, or an equivalent 1-point/1x rise in the terminal assumption?",
       correctAnswer: deltaR > deltaG ? "discountRate" : "terminalAssumption",
+      valueKind: "choice",
+      choices: [
+        { value: "discountRate", label: "Discount rate" },
+        { value: "terminalAssumption", label: "Terminal assumption" },
+      ],
       deltaR,
       deltaG,
     };
@@ -352,6 +359,7 @@ Two tiers:
           problem.inputs.finalYearMetric +
           "m, what exit multiple does this terminal value imply?",
         correctValue: impliedMultiple,
+        valueKind: "multiple",
         tolerance: 0.2,
       };
     }
@@ -365,6 +373,7 @@ Two tiers:
         (r * 100).toFixed(1) +
         "%, what perpetuity growth rate does this terminal value imply?",
       correctValue: impliedGrowth,
+      valueKind: "percent",
       tolerance: 0.001,
     };
   }
@@ -389,6 +398,7 @@ Two tiers:
         "If we used the mid-year discounting convention instead of end-of-year, what would the new Enterprise Value be, and does it go up or down?",
       correctDirection: evMidYear > baseEV ? "up" : "down",
       correctValue: evMidYear,
+      valueKind: "dollar",
       tolerance: toleranceFor("enterpriseValue", evMidYear),
     };
   }
@@ -422,6 +432,7 @@ Two tiers:
           targetEV.toFixed(1) +
           "m instead. What terminal growth rate would that imply?",
         correctValue: impliedGrowth,
+        valueKind: "percent",
         tolerance: 0.001,
       };
     }
@@ -433,6 +444,7 @@ Two tiers:
         targetEV.toFixed(1) +
         "m instead. What exit multiple would that imply?",
       correctValue: impliedMultiple,
+      valueKind: "multiple",
       tolerance: 0.2,
     };
   }

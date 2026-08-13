@@ -105,6 +105,7 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
         prompt: "If D&A rises by 15% (to " + daUp.toFixed(1) + "), what is the new Unlevered FCF, and does it go up or down? (Think about the tax shield.)",
         correctDirection: rebuilt.solution.fcf > problem.solution.fcf ? "up" : "down",
         correctValue: rebuilt.solution.fcf,
+        valueKind: "dollar",
         tolerance: toleranceFor(rebuilt.solution.fcf),
       };
     }
@@ -115,6 +116,7 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
       prompt: "If CapEx rises by 2 percentage points of EBITDA (to " + (capexUp * 100).toFixed(1) + "%) across all years, what is the new total 3-year Unlevered FCF?",
       correctDirection: rebuilt.solution.totalFcf > problem.solution.totalFcf ? "up" : "down",
       correctValue: rebuilt.solution.totalFcf,
+      valueKind: "dollar",
       tolerance: toleranceFor(rebuilt.solution.totalFcf),
     };
   }
@@ -133,6 +135,7 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
         id: "backsolveEbitda",
         prompt: "Suppose the target Unlevered FCF is $" + t.toFixed(1) + "m instead. What EBITDA would that require?",
         correctValue: requiredEbitda,
+        valueKind: "dollar",
         tolerance: toleranceFor(requiredEbitda),
       };
     }
@@ -146,6 +149,7 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
       id: "backsolveEbitda",
       prompt: "Suppose the target total 3-year Unlevered FCF is $" + t.toFixed(1) + "m instead. What base-year EBITDA would that require?",
       correctValue: requiredBaseEbitda,
+      valueKind: "dollar",
       tolerance: toleranceFor(requiredBaseEbitda),
     };
   }

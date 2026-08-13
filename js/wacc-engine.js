@@ -94,6 +94,7 @@ Medium: same, but the beta must first be un-levered from a comparable
         prompt: "If the company's beta rises by 0.2 (to " + betaUp.toFixed(2) + "), what is the new WACC, and does it go up or down?",
         correctDirection: rebuilt.solution.wacc > baseWacc ? "up" : "down",
         correctValue: rebuilt.solution.wacc,
+        valueKind: "percent",
         tolerance: 0.001,
       };
     }
@@ -104,6 +105,7 @@ Medium: same, but the beta must first be un-levered from a comparable
       prompt: "If the tax rate rises by 3 percentage points (to " + (taxUp * 100).toFixed(1) + "%), what is the new WACC, and does it go up or down?",
       correctDirection: rebuilt.solution.wacc > baseWacc ? "up" : "down",
       correctValue: rebuilt.solution.wacc,
+      valueKind: "percent",
       tolerance: 0.001,
     };
   }
@@ -123,6 +125,7 @@ Medium: same, but the beta must first be un-levered from a comparable
         (t * 100).toFixed(2) +
         "% instead. Holding the cost of debt and capital structure fixed, what beta would that require?",
       correctValue: requiredBeta,
+      valueKind: "ratio",
       tolerance: 0.02,
     };
   }

@@ -21,16 +21,16 @@
   <!-- SETUP -->
   <section id="setup-section" aria-labelledby="setup-heading">
     <h2 id="setup-heading">Choose a difficulty</h2>
-    <p class="intro-line">Each problem uses fresh, randomized numbers. Fill in the table cell by cell — each entry is checked as you go — then answer 1&ndash;3 follow-up questions.</p>
+    <p class="intro-line">Each problem uses fresh, randomized numbers, drawn from DCF discounting, WACC build-up, beta un-lever/re-lever, and unlevered FCF build. Fill in the fields one at a time — each entry is checked as you go — then answer 1&ndash;3 follow-up questions, including some that ask you to work backward from a target answer.</p>
 
     <div class="tier-choice" role="radiogroup" aria-label="Difficulty tier">
       <button type="button" class="tier-btn" data-tier="easy" role="radio" aria-checked="true">
         <span class="tier-name">Easy</span>
-        <span class="tier-desc">3 years, cash flows given, Gordon Growth terminal value</span>
+        <span class="tier-desc">Fewer variables, more given, shorter follow-up chains</span>
       </button>
       <button type="button" class="tier-btn" data-tier="medium" role="radio" aria-checked="false">
         <span class="tier-name">Medium</span>
-        <span class="tier-desc">5 years, derive cash flows, full equity bridge</span>
+        <span class="tier-desc">More variables, less given, deeper follow-up chains</span>
       </button>
     </div>
 
@@ -50,14 +50,8 @@
     <p id="problem-prompt" class="problem-prompt"></p>
     <div id="problem-givens" class="givens"></div>
 
-    <div id="table-wrap" class="table-wrap">
-      <div class="table-head" aria-hidden="true">
-        <span>Year</span><span>Cash Flow ($m)</span><span>Discount Factor</span><span>Present Value ($m)</span>
-      </div>
-      <div id="table-rows" role="table" aria-label="Cash flow projection table"></div>
-    </div>
-
-    <div id="summary-rows" class="summary-rows"></div>
+    <div id="table-head" class="table-head" aria-hidden="true"></div>
+    <div id="problem-groups" role="table" aria-label="Problem fields"></div>
 
     <div id="step-feedback" class="step-feedback" aria-live="polite"></div>
   </section>
@@ -103,6 +97,10 @@
 </footer>
 
 <script src="js/dcf-engine.js"></script>
+<script src="js/wacc-engine.js"></script>
+<script src="js/beta-engine.js"></script>
+<script src="js/fcf-engine.js"></script>
+<script src="js/problem-adapters.js"></script>
 <script src="js/progress-store.js"></script>
 <script src="js/app.js"></script>
 </body>

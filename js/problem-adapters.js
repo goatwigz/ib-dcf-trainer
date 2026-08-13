@@ -41,6 +41,50 @@ already "filled in" and not editable) or blank (student must fill it).
     return parts.join(", ") + ", and there are " + nm(inputs.sharesOutstanding + "m") + " shares outstanding";
   }
 
+  // ---- Scenario framing: persona x industry, wrapped around a pure
+  // technical "ask" sentence — so the same underlying mechanic reads as
+  // a genuinely different situation each time, not a reskinned template.
+  const PERSONAS = [
+    {
+      label: "Boutique M&A interview",
+      frame: (industry, ask) =>
+        "Your interviewer, a VP at a boutique M&amp;A shop, leans back and says: &ldquo;We&rsquo;re advising " +
+        industry + " on a sale process. " + ask + "&rdquo;",
+    },
+    {
+      label: "Bulge-bracket superday",
+      frame: (industry, ask) =>
+        "You&rsquo;re deep into a superday at a bulge-bracket bank. The interviewer fires off: &ldquo;Quick one — " +
+        industry + ". " + ask + "&rdquo;",
+    },
+    {
+      label: "Client advisory case",
+      frame: (industry, ask) =>
+        "You&rsquo;re in a client meeting, advising on a possible acquisition of " + industry +
+        ". Your MD turns to you: &ldquo;" + ask + "&rdquo;",
+    },
+  ];
+
+  const INDUSTRIES = [
+    "a mid-market SaaS company",
+    "a national retail chain",
+    "an industrial manufacturer",
+    "a regional healthcare services provider",
+    "a consumer packaged goods company",
+  ];
+
+  // Returns { scenarioTag, narrative } — scenarioTag is a short label for
+  // the persona (rendered as a small caption above the quote); narrative
+  // is the full quote HTML, ready to drop into the givens panel.
+  function scenario(ask) {
+    const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+    const industry = INDUSTRIES[Math.floor(Math.random() * INDUSTRIES.length)];
+    return {
+      scenarioTag: persona.label,
+      narrative: "<p>" + persona.frame(industry, ask) + "</p>",
+    };
+  }
+
   // ---- DCF table (gordon / exitMultiple) ----------------------------
   function dcfTableAdapter(problem) {
     const { subtype, tier, inputs, solution } = problem;
@@ -74,39 +118,37 @@ already "filled in" and not editable) or blank (student must fill it).
       });
     }
 
-    let narrative;
+    let ask;
     if (subtype === "gordon" && tier === "easy") {
-      narrative =
-        '<p>Your interviewer says: &ldquo;Let&rsquo;s do a quick DCF. This company will generate free cash flows of ' +
-        nm(money(inputs.cashFlows[0])) + ", " + nm(money(inputs.cashFlows[1])) + ", and " + nm(money(inputs.cashFlows[2])) +
-        " over the next three years. Discount those back at " + nm(pct(inputs.discountRate, 1)) +
-        ", and assume cash flows grow at " + nm(pct(inputs.terminalGrowth, 1)) +
-        " forever after that. Walk me through getting to Enterprise Value.&rdquo;</p>";
+      ask =
+        "Projected free cash flows are " + nm(money(inputs.cashFlows[0])) + ", " + nm(money(inputs.cashFlows[1])) +
+        ", and " + nm(money(inputs.cashFlows[2])) + " over the next three years — discount those at " +
+        nm(pct(inputs.discountRate, 1)) + ", assuming " + nm(pct(inputs.terminalGrowth, 1)) +
+        " terminal growth. Walk me through Enterprise Value.";
     } else if (subtype === "gordon" && tier === "medium") {
-      narrative =
-        '<p>Your interviewer says: &ldquo;Let&rsquo;s build a 5-year DCF. Current free cash flow is ' +
-        nm(money(inputs.baseCashFlow)) + " growing at " + nm(pct(inputs.cashFlowGrowth, 1)) +
+      ask =
+        "Current free cash flow is " + nm(money(inputs.baseCashFlow)) + " growing at " + nm(pct(inputs.cashFlowGrowth, 1)) +
         " a year. Discount it at " + nm(pct(inputs.discountRate, 1)) + ", with a " + nm(pct(inputs.terminalGrowth, 1)) +
-        " terminal growth rate. Then bridge down to a per-share value — " + bridgeClause(inputs) + ".&rdquo;</p>";
+        " terminal growth rate. Then bridge down to a per-share value — " + bridgeClause(inputs) + ".";
     } else if (subtype === "exitMultiple" && tier === "easy") {
-      narrative =
-        '<p>Your interviewer says: &ldquo;Same idea, but use an exit multiple this time. Free cash flows are ' +
-        nm(money(inputs.cashFlows[0])) + ", " + nm(money(inputs.cashFlows[1])) + ", and " + nm(money(inputs.cashFlows[2])) +
-        " over three years, discounted at " + nm(pct(inputs.discountRate, 1)) +
+      ask =
+        "Free cash flows are " + nm(money(inputs.cashFlows[0])) + ", " + nm(money(inputs.cashFlows[1])) + ", and " +
+        nm(money(inputs.cashFlows[2])) + " over three years, discounted at " + nm(pct(inputs.discountRate, 1)) +
         ". For terminal value, apply a " + nm(inputs.exitMultiple.toFixed(1) + "x") +
-        " multiple to a final-year EBITDA of " + nm(money(inputs.finalYearMetric)) + ".&rdquo;</p>";
+        " multiple to a final-year EBITDA of " + nm(money(inputs.finalYearMetric)) + ".";
     } else {
-      narrative =
-        '<p>Your interviewer says: &ldquo;5-year DCF again, exit multiple this time. Current free cash flow is ' +
-        nm(money(inputs.baseCashFlow)) + " growing at " + nm(pct(inputs.cashFlowGrowth, 1)) +
+      ask =
+        "Current free cash flow is " + nm(money(inputs.baseCashFlow)) + " growing at " + nm(pct(inputs.cashFlowGrowth, 1)) +
         " a year, discounted at " + nm(pct(inputs.discountRate, 1)) + ". Terminal value comes from a " +
         nm(inputs.exitMultiple.toFixed(1) + "x") + " multiple on a final-year EBITDA of " + nm(money(inputs.finalYearMetric)) +
-        ". Then bridge to per-share — " + bridgeClause(inputs) + ".&rdquo;</p>";
+        ". Then bridge to per-share — " + bridgeClause(inputs) + ".";
     }
+    const { scenarioTag, narrative } = scenario(ask);
 
     return {
       layout: "table",
       title: subtype === "gordon" ? "DCF — Gordon Growth Terminal Value" : "DCF — Exit Multiple Terminal Value",
+      scenarioTag,
       narrative,
       groups,
       checkStep: (p, key, val) => DCFEngine.checkStep(p, key, val),

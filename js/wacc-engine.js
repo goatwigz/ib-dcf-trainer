@@ -130,8 +130,26 @@ Medium: same, but the beta must first be un-levered from a comparable
     };
   }
 
+  // Ungraded, conceptual — reveals a hand-written model answer instead
+  // of checking a number, so the follow-up chain isn't always the same
+  // "type a number" shape.
+  function conceptualFollowUp() {
+    return {
+      id: "conceptualAfterTaxDebt",
+      valueKind: "conceptual",
+      prompt: "Why do we use the AFTER-TAX cost of debt in WACC, but cost of equity isn't adjusted the same way?",
+      modelAnswer:
+        "Interest paid on debt is tax-deductible, so it creates a tax shield — the company's real, effective cost " +
+        "of that debt is lower than the stated interest rate, which is why we multiply by (1 − tax rate). Dividends " +
+        "and the return equity holders demand come out of profits AFTER tax has already been paid — there's no " +
+        "equivalent deduction to model, because equity got no tax benefit to begin with.",
+    };
+  }
+
   function generateFollowUps(problem) {
-    return [sensitivityFollowUp(problem), backsolveBetaFollowUp(problem)];
+    const bank = [backsolveBetaFollowUp, conceptualFollowUp];
+    const pick = bank[Math.floor(Math.random() * bank.length)];
+    return [sensitivityFollowUp(problem), pick(problem)];
   }
 
   const WaccEngine = {
@@ -139,7 +157,7 @@ Medium: same, but the beta must first be un-levered from a comparable
     generateProblem,
     checkStep,
     generateFollowUps,
-    followUps: { sensitivity: sensitivityFollowUp, backsolveBeta: backsolveBetaFollowUp },
+    followUps: { sensitivity: sensitivityFollowUp, backsolveBeta: backsolveBetaFollowUp, conceptual: conceptualFollowUp },
   };
 
   if (typeof module !== "undefined" && module.exports) {

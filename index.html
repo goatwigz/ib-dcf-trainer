@@ -10,9 +10,15 @@
 <body>
 
 <header class="site-header">
-  <div class="wrap">
-    <h1>DCF Drills</h1>
-    <p class="tagline">Investment banking interview practice — not a valuation calculator.</p>
+  <div class="wrap header-top">
+    <div>
+      <h1>DCF Drills</h1>
+      <p class="tagline">Investment banking interview practice — not a valuation calculator.</p>
+    </div>
+    <div id="header-game-bar" class="game-bar" hidden>
+      <span class="game-stat">Streak <span class="game-stat-value" id="header-streak">0</span></span>
+      <span class="game-stat">Score <span class="game-stat-value" id="header-score">0</span></span>
+    </div>
   </div>
 </header>
 
@@ -48,6 +54,7 @@
 
     <h2 id="problem-heading" class="sr-only">Current problem</h2>
     <p id="problem-prompt" class="problem-prompt"></p>
+    <div id="mastery-badge-wrap"></div>
     <div id="problem-givens" class="givens"></div>
 
     <div id="table-head" class="table-head" aria-hidden="true"></div>
@@ -77,6 +84,7 @@
   <!-- SESSION SUMMARY -->
   <section id="summary-section" hidden aria-labelledby="summary-heading">
     <h2 id="summary-heading">Session summary</h2>
+    <div id="milestone-banner" class="milestone-banner" hidden></div>
     <div id="summary-stats" class="stats-row"></div>
     <div class="summary-actions">
       <button type="button" id="continue-session-btn" class="btn btn-primary">Keep going</button>

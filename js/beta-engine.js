@@ -135,8 +135,38 @@ Medium: three comparables, unlever each, average, then relever once.
     };
   }
 
+  // Ungraded, conceptual — reveals a hand-written model answer instead
+  // of checking a number.
+  function conceptualFollowUp(problem) {
+    if (problem.tier === "easy") {
+      return {
+        id: "conceptualBetaMeaning",
+        valueKind: "conceptual",
+        prompt: "What does a beta less than 1 imply about this stock relative to the market?",
+        modelAnswer:
+          "A beta below 1 means the stock has historically moved less than the overall market — smaller swings up " +
+          "and down, on average, for a given market move. It's a measure of systematic (market) risk specifically, " +
+          "not total risk — a low-beta stock can still be risky for company-specific reasons that beta doesn't " +
+          "capture at all.",
+      };
+    }
+    return {
+      id: "conceptualWhyUnlever",
+      valueKind: "conceptual",
+      prompt: "Why do we un-lever each comp's beta before averaging, instead of just averaging their raw (levered) betas?",
+      modelAnswer:
+        "A levered beta reflects both the underlying business risk AND how much debt that specific company happens " +
+        "to carry. Comps rarely share the same capital structure, so averaging raw levered betas would blend " +
+        "together different amounts of financial leverage as if they were equivalent. Un-levering strips out each " +
+        "comp's own financing effect, leaving pure business risk to average — then you re-lever the average using " +
+        "the TARGET company's actual capital structure.",
+    };
+  }
+
   function generateFollowUps(problem) {
-    return [sensitivityFollowUp(problem), backsolveDEFollowUp(problem)];
+    const bank = [backsolveDEFollowUp, conceptualFollowUp];
+    const pick = bank[Math.floor(Math.random() * bank.length)];
+    return [sensitivityFollowUp(problem), pick(problem)];
   }
 
   const BetaEngine = {
@@ -144,7 +174,7 @@ Medium: three comparables, unlever each, average, then relever once.
     generateProblem,
     checkStep,
     generateFollowUps,
-    followUps: { sensitivity: sensitivityFollowUp, backsolveDE: backsolveDEFollowUp },
+    followUps: { sensitivity: sensitivityFollowUp, backsolveDE: backsolveDEFollowUp, conceptual: conceptualFollowUp },
   };
 
   if (typeof module !== "undefined" && module.exports) {

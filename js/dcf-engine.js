@@ -449,8 +449,38 @@ Two tiers:
     };
   }
 
+  // Ungraded, conceptual — no numeric answer to check (and no LLM
+  // grading it), so the student writes a short answer if they want,
+  // then reveals a hand-written model answer to self-assess against.
+  // Exists so not every follow-up has the same "type a number" shape.
+  function conceptualFollowUp(problem) {
+    if (problem.subtype === "gordon") {
+      return {
+        id: "conceptualTerminalGrowth",
+        valueKind: "conceptual",
+        prompt: "Why must the terminal growth rate stay below the discount rate in the Gordon Growth formula?",
+        modelAnswer:
+          "The formula divides by (r − g). If g approaches or exceeds r, that denominator shrinks toward zero or " +
+          "goes negative, producing an infinite or nonsensical terminal value. Economically, a cash flow can't grow " +
+          "faster forever than the rate you're discounting it at — if it did, its present value would never converge " +
+          "to a finite number.",
+      };
+    }
+    return {
+      id: "conceptualExitMultipleRisk",
+      valueKind: "conceptual",
+      prompt: "What's the risk of basing your exit multiple on how comparable companies trade today?",
+      modelAnswer:
+        "Comps' current multiples reflect today's market sentiment, growth expectations, and where we are in the " +
+        "cycle. If you actually exit years from now — in a recession, a different rate environment, a re-rated " +
+        "sector — that multiple could be very different even if the business performed exactly as modeled. That's " +
+        "part of why interviewers like to see you sanity-check an exit multiple against the perpetuity growth rate " +
+        "it implies, rather than trusting it blindly.",
+    };
+  }
+
   function followUpBank(problem) {
-    const bank = [terminalAssumptionFollowUp, tvCrossCheckFollowUp, midYearConventionFollowUp, backsolveFollowUp];
+    const bank = [terminalAssumptionFollowUp, tvCrossCheckFollowUp, midYearConventionFollowUp, backsolveFollowUp, conceptualFollowUp];
     if (problem.tier === "medium") {
       bank.push(compareSensitivityFollowUp);
     }
@@ -495,6 +525,7 @@ Two tiers:
       tvCrossCheck: tvCrossCheckFollowUp,
       midYearConvention: midYearConventionFollowUp,
       backsolve: backsolveFollowUp,
+      conceptual: conceptualFollowUp,
     },
     _internal: { makeRng, randStep, randInt, randInRange }, // exposed for tests only
   };

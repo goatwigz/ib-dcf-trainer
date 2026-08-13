@@ -154,8 +154,25 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
     };
   }
 
+  // Ungraded, conceptual — reveals a hand-written model answer instead
+  // of checking a number.
+  function conceptualFollowUp() {
+    return {
+      id: "conceptualDaAddback",
+      valueKind: "conceptual",
+      prompt: "We subtract D&A to get to EBIT, then add it straight back later. What's the point?",
+      modelAnswer:
+        "D&A is a non-cash accounting expense — subtracting it first matters because it reduces taxable income (and " +
+        "therefore the tax bill), but no actual cash leaves the business when it's recorded. Adding it back after " +
+        "computing NOPAT restores the cash that was never really spent, while still keeping the tax benefit it " +
+        "generated along the way.",
+    };
+  }
+
   function generateFollowUps(problem) {
-    return [sensitivityFollowUp(problem), backsolveEbitdaFollowUp(problem)];
+    const bank = [backsolveEbitdaFollowUp, conceptualFollowUp];
+    const pick = bank[Math.floor(Math.random() * bank.length)];
+    return [sensitivityFollowUp(problem), pick(problem)];
   }
 
   const FCFEngine = {
@@ -163,7 +180,7 @@ FCF = NOPAT + D&A − CapEx − ΔNWC, where NOPAT = EBIT × (1 − tax rate).
     generateProblem,
     checkStep,
     generateFollowUps,
-    followUps: { sensitivity: sensitivityFollowUp, backsolveEbitda: backsolveEbitdaFollowUp },
+    followUps: { sensitivity: sensitivityFollowUp, backsolveEbitda: backsolveEbitdaFollowUp, conceptual: conceptualFollowUp },
   };
 
   if (typeof module !== "undefined" && module.exports) {

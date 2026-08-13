@@ -137,57 +137,28 @@
     $("#problem-prompt").textContent =
       current.adapted.title + (current.timed ? "" : " — first time seeing this type, so it's untimed.");
 
-    $("#problem-givens").innerHTML = current.adapted.narrative;
+    $("#problem-givens").innerHTML =
+      (current.adapted.scenarioTag ? '<span class="scenario-tag">' + escapeHtml(current.adapted.scenarioTag) + "</span>" : "") +
+      current.adapted.narrative;
+
+    renderMasteryBadge();
 
     const tableHead = $("#table-head");
+    tableHead.hidden = true;
+    tableHead.innerHTML = "";
+
     const container = $("#problem-groups");
     container.innerHTML = "";
     container.className = current.adapted.layout === "table" ? "layout-table" : "layout-steplist";
 
-    if (current.adapted.layout === "table") {
-      tableHead.className = "table-head layout-table";
-      tableHead.innerHTML = "<span>Year</span><span>Cash Flow ($m)</span><span>Discount Factor</span><span>Present Value ($m)</span>";
-      tableHead.hidden = false;
-    } else {
-      tableHead.hidden = true;
-      tableHead.innerHTML = "";
-      tableHead.className = "table-head";
-    }
-
     current.totalBlank = 0;
     if (!opts || !opts.skipReset) current.correctCount = 0;
 
-    current.adapted.groups.forEach((group) => {
-      const isYearRow = current.adapted.layout === "table" && /^Year \d+$/.test(group.label);
-      const block = document.createElement("div");
-
-      if (!isYearRow) {
-        block.className = "group-block";
-        const labelEl = document.createElement("div");
-        labelEl.className = "group-label";
-        labelEl.textContent = group.label;
-        block.appendChild(labelEl);
-      }
-
-      const row = document.createElement("div");
-      row.className = "table-row" + (isYearRow ? " is-year-row" : "");
-      row.setAttribute("role", "group");
-      row.setAttribute("aria-label", group.label);
-
-      if (isYearRow) {
-        const yearSpan = document.createElement("span");
-        yearSpan.className = "row-year";
-        yearSpan.textContent = group.label;
-        row.appendChild(yearSpan);
-      }
-
-      group.fields.forEach((field) => {
-        row.appendChild(buildFieldEl(field));
-      });
-
-      block.appendChild(row);
-      container.appendChild(block);
-    });
+    if (current.adapted.layout === "table") {
+      renderLedgerTable(container);
+    } else {
+      renderSteplistGroups(container);
+    }
 
     $("#step-feedback").textContent = "";
     updateProgressBar();
@@ -243,6 +214,155 @@
     });
     current.correctCount = restoredCount;
     updateProgressBar();
+  }
+
+  // ---- Steplist layout (WACC / Beta / FCF) — unchanged card-per-field ----
+  function renderSteplistGroups(container) {
+    current.adapted.groups.forEach((group) => {
+      const block = document.createElement("div");
+      block.className = "group-block";
+      const labelEl = document.createElement("div");
+      labelEl.className = "group-label";
+      labelEl.textContent = group.label;
+      block.appendChild(labelEl);
+
+      const row = document.createElement("div");
+      row.className = "table-row";
+      row.setAttribute("role", "group");
+      row.setAttribute("aria-label", group.label);
+
+      group.fields.forEach((field) => {
+        row.appendChild(buildFieldEl(field));
+      });
+
+      block.appendChild(row);
+      container.appendChild(block);
+    });
+  }
+
+  // ---- Ledger table layout (DCF) — real <table>, underline inputs --------
+  function renderLedgerTable(container) {
+    const groups = current.adapted.groups;
+    const yearGroups = groups.filter((g) => /^Year \d+$/.test(g.label));
+    const summaryGroups = groups.filter((g) => !/^Year \d+$/.test(g.label));
+
+    const yearTable = document.createElement("table");
+    yearTable.className = "ledger-table";
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th>Year</th><th>Cash Flow ($m)</th><th>Discount Factor</th><th>Present Value ($m)</th></tr>";
+    yearTable.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    yearGroups.forEach((group) => {
+      const tr = document.createElement("tr");
+      const yearTd = document.createElement("td");
+      yearTd.textContent = group.label;
+      tr.appendChild(yearTd);
+      group.fields.forEach((field) => {
+        tr.appendChild(buildLedgerCell(field, { dataLabel: true }));
+      });
+      tbody.appendChild(tr);
+    });
+    yearTable.appendChild(tbody);
+    const yearWrap = document.createElement("div");
+    yearWrap.className = "ledger-wrap";
+    yearWrap.appendChild(yearTable);
+    container.appendChild(yearWrap);
+
+    summaryGroups.forEach((group) => {
+      const sWrap = document.createElement("div");
+      sWrap.className = "ledger-wrap ledger-summary";
+      const sTable = document.createElement("table");
+      sTable.className = "ledger-table";
+      const caption = document.createElement("caption");
+      caption.textContent = group.label;
+      sTable.appendChild(caption);
+      const sBody = document.createElement("tbody");
+      group.fields.forEach((field) => {
+        const tr = document.createElement("tr");
+        const labelTd = document.createElement("td");
+        labelTd.textContent = field.label + (field.unit ? " (" + field.unit + ")" : "");
+        tr.appendChild(labelTd);
+        tr.appendChild(buildLedgerCell(field, { dataLabel: false }));
+        sBody.appendChild(tr);
+      });
+      sTable.appendChild(sBody);
+      sWrap.appendChild(sTable);
+      container.appendChild(sWrap);
+    });
+  }
+
+  function buildLedgerCell(field, opts) {
+    const td = document.createElement("td");
+    td.id = "field-" + field.key;
+    const labelText = field.label + (field.unit ? " (" + field.unit + ")" : field.isPercent ? " (%)" : "");
+    if (opts && opts.dataLabel) td.setAttribute("data-label", labelText);
+
+    if (field.given) {
+      td.className = "cell-given";
+      td.textContent = Number(field.value).toFixed(field.decimals);
+      return td;
+    }
+
+    current.totalBlank++;
+    const inputId = "input-" + field.key;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.id = inputId;
+    input.className = "ledger-input";
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", labelText);
+    input.setAttribute("aria-describedby", inputId + "-status");
+    td.appendChild(input);
+
+    const status = document.createElement("div");
+    status.className = "field-status";
+    status.id = inputId + "-status";
+    status.setAttribute("aria-live", "polite");
+    td.appendChild(status);
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        checkField(field, input, status, td);
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (input.value.trim() !== "" && !td.classList.contains("is-correct")) {
+        checkField(field, input, status, td);
+      }
+    });
+
+    return td;
+  }
+
+  // ---- Gamification chrome ------------------------------------------------
+
+  function updateHeaderGameBar() {
+    const bar = $("#header-game-bar");
+    if (progress.score === 0 && progress.totalProblems === 0) {
+      bar.hidden = true;
+      return;
+    }
+    bar.hidden = false;
+    $("#header-streak").textContent = String(progress.currentStreak);
+    $("#header-score").textContent = String(progress.score);
+  }
+
+  const MASTERY_TIER_LABEL = { learning: "Learning", practiced: "Practiced", fluent: "Fluent" };
+  const CATEGORY_LABEL = { dcf: "DCF", wacc: "WACC", beta: "Beta", fcf: "FCF" };
+
+  function renderMasteryBadge() {
+    const wrap = $("#mastery-badge-wrap");
+    if (!current) {
+      wrap.innerHTML = "";
+      return;
+    }
+    const tier = ProgressStore.masteryTier(progress, current.category);
+    wrap.innerHTML =
+      '<span class="mastery-badge" data-tier="' + tier + '">' +
+      escapeHtml(CATEGORY_LABEL[current.category] || current.category) + ": " + MASTERY_TIER_LABEL[tier] +
+      "</span>";
   }
 
   function buildFieldEl(field) {
@@ -311,11 +431,11 @@
     const value = field.isPercent ? parsed / 100 : parsed;
     const result = current.adapted.checkStep(current.problem, field.key, value);
 
-    if (!current.results[field.key]) current.results[field.key] = { attemptedOnce: false, resolved: false };
+    if (!current.results[field.key]) current.results[field.key] = { attemptedOnce: false, resolved: false, hadWrongAttempt: false };
     const rec = current.results[field.key];
     if (!rec.attemptedOnce) {
       rec.attemptedOnce = true;
-      ProgressStore.recordStepAttempt(progress, field.label, result.correct);
+      ProgressStore.recordStepAttempt(progress, current.category, field.label, result.correct);
       if (!result.correct) current.allFirstTryCorrect = false;
       ProgressStore.save(progress);
     }
@@ -329,12 +449,19 @@
       if (!rec.resolved) {
         rec.resolved = true;
         current.correctCount++;
+        if (current.timed) {
+          const points = rec.hadWrongAttempt ? ProgressStore.POINTS_AFTER_RETRY : ProgressStore.POINTS_FIRST_TRY;
+          ProgressStore.addScore(progress, points);
+          ProgressStore.save(progress);
+          updateHeaderGameBar();
+        }
       }
       updateProgressBar();
       advanceFocus(input);
       saveInProgressSnapshot("table");
       if (current.correctCount === current.totalBlank) finishTable();
     } else {
+      rec.hadWrongAttempt = true;
       fieldEl.classList.add("is-incorrect");
       fieldEl.classList.remove("is-correct");
       status.textContent = "Not quite — try again";
@@ -399,6 +526,37 @@
 
     const inputsEl = $("#followup-inputs");
     inputsEl.innerHTML = "";
+
+    if (fu.valueKind === "conceptual") {
+      const label = document.createElement("label");
+      label.textContent = "Your answer (optional, not graded)";
+      label.htmlFor = "fu-conceptual";
+      const textarea = document.createElement("textarea");
+      textarea.id = "fu-conceptual";
+      textarea.rows = 2;
+      inputsEl.appendChild(label);
+      inputsEl.appendChild(textarea);
+
+      const answerBox = document.createElement("div");
+      answerBox.className = "model-answer";
+      answerBox.hidden = true;
+      inputsEl.appendChild(answerBox);
+
+      $("#followup-feedback").textContent = "";
+      $("#followup-feedback").className = "step-feedback";
+      $("#followup-submit").textContent = "Reveal model answer";
+      $("#followup-submit").onclick = () => {
+        answerBox.hidden = false;
+        answerBox.innerHTML = '<span class="scenario-tag">Model answer</span>' + escapeHtml(fu.modelAnswer);
+        ProgressStore.recordFollowUp(progress, true);
+        ProgressStore.save(progress);
+        $("#followup-submit").textContent = current.followUpIndex + 1 < current.followUps.length ? "Next follow-up" : "Continue";
+        $("#followup-submit").onclick = advanceFollowUp;
+        saveInProgressSnapshot("followups");
+      };
+      textarea.focus();
+      return;
+    }
 
     if (fu.valueKind === "choice") {
       const label = document.createElement("label");
@@ -475,8 +633,12 @@
     }
 
     ProgressStore.recordFollowUp(progress, correct);
-    ProgressStore.save(progress);
     if (!correct) current.followUpAllCorrect = false;
+    if (correct && current.timed) {
+      ProgressStore.addScore(progress, ProgressStore.POINTS_FOLLOWUP);
+      updateHeaderGameBar();
+    }
+    ProgressStore.save(progress);
 
     if (correct) {
       feedbackEl.textContent = "Correct.";
@@ -523,10 +685,11 @@
     $("#explain-section").hidden = true;
 
     const timedSeconds = current.timed ? current.elapsedSec : null;
-    ProgressStore.recordProblemCompletion(progress, {
+    ProgressStore.recordProblemCompletion(progress, current.category, {
       allFirstTryCorrect: current.allFirstTryCorrect && current.followUpAllCorrect,
       timedSeconds,
     });
+    const newMilestones = ProgressStore.checkMilestones(progress);
     ProgressStore.save(progress);
     ProgressStore.clearInProgress();
 
@@ -534,18 +697,31 @@
     if (timedSeconds !== null) session.timesSec.push(timedSeconds);
 
     updateStatsStrip();
-    showSummary();
+    updateHeaderGameBar();
+    showSummary(newMilestones);
   }
 
-  function showSummary() {
+  function showSummary(newMilestones) {
     $("#problem-section").hidden = true;
     $("#summary-section").hidden = false;
+
+    const banner = $("#milestone-banner");
+    if (newMilestones && newMilestones.length > 0) {
+      banner.hidden = false;
+      banner.innerHTML = newMilestones
+        .map((m) => '<span class="milestone-mark">&#9679;</span> ' + escapeHtml(m))
+        .join("<br>");
+    } else {
+      banner.hidden = true;
+      banner.innerHTML = "";
+    }
 
     const accuracy = ProgressStore.overallAccuracy(progress);
     const avgSpeed = ProgressStore.averageSpeedSeconds(progress);
 
     const stats = [
       { label: "Solved this session", value: String(session.solvedCount) },
+      { label: "Score", value: String(progress.score) },
       { label: "Streak", value: String(progress.currentStreak) },
       { label: "Accuracy", value: accuracy === null ? "—" : Math.round(accuracy * 100) + "%" },
       { label: "Avg. speed", value: avgSpeed === null ? "—" : fmtTime(avgSpeed) },
@@ -781,6 +957,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     initSetup();
     updateStatsStrip();
+    updateHeaderGameBar();
     restoreInProgress();
   });
 })();

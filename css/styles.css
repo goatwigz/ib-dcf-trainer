@@ -9,15 +9,16 @@
   --text: #17181a;
   --text-secondary: #63676c;
   --border: #e2e4e6;
-  --accent: #0f766e;       /* deep teal — 5.47:1 contrast on white (AA) */
+  --accent: #b45309;       /* deep amber/gold — 5.02:1 on white (AA). Terminal, not SaaS-blue. */
   --accent-contrast: #ffffff;
+  --success: #15803d;      /* genuine green — separate from accent, ~5.1:1 on white */
   --error: #b3261e;        /* 5.9:1 on white */
-  --success: #0f766e;
 
   --font-mono: "SFMono-Regular", "IBM Plex Mono", "Roboto Mono", Consolas, "Liberation Mono", monospace;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
 
-  --radius: 6px;
+  --radius: 4px;
   --max-width: 760px;
 }
 
@@ -29,10 +30,10 @@
     --text: #edeeee;
     --text-secondary: #9a9da1;
     --border: #2a2c2e;
-    --accent: #5eead4;     /* bright teal — >13:1 contrast on near-black */
+    --accent: #fbbf24;     /* bright amber — ~12:1 on near-black */
     --accent-contrast: #0b0c0c;
+    --success: #4ade80;
     --error: #f4877e;
-    --success: #5eead4;
   }
 }
 
@@ -43,10 +44,10 @@
   --text: #edeeee;
   --text-secondary: #9a9da1;
   --border: #2a2c2e;
-  --accent: #5eead4;
+  --accent: #fbbf24;
   --accent-contrast: #0b0c0c;
+  --success: #4ade80;
   --error: #f4877e;
-  --success: #5eead4;
 }
 
 /* ------------------------------------------------------------------ */
@@ -54,6 +55,13 @@
 /* ------------------------------------------------------------------ */
 
 * { box-sizing: border-box; }
+
+/* The [hidden] attribute must always win over a class's own `display`
+   value (e.g. .game-bar / .stats-strip set display:flex unconditionally
+   for when they ARE shown) — author-stylesheet specificity ties are
+   resolved by source order, not intent, so without !important here an
+   element with both `hidden` and a flex/block class stays visible. */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -99,6 +107,13 @@ a { color: var(--accent); }
 .site-header {
   border-bottom: 1px solid var(--border);
   padding: 20px 0;
+}
+.header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 .site-header .tagline {
   margin: 4px 0 0;
@@ -225,18 +240,30 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; }
 }
 
 .givens {
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   color: var(--text);
   background: var(--bg-subtle);
   border-left: 3px solid var(--accent);
   border-radius: 0 var(--radius) var(--radius) 0;
-  padding: 14px 16px;
+  padding: 16px 18px;
   margin: 0 0 20px;
 }
 .givens p {
   margin: 0;
+  font-family: var(--font-serif);
   font-style: italic;
-  line-height: 1.55;
+  line-height: 1.6;
+}
+.scenario-tag {
+  display: block;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 .inline-num {
   font-family: var(--font-mono);
@@ -357,6 +384,188 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; }
 }
 
 /* ------------------------------------------------------------------ */
+/* Ledger table (DCF) — real <table>, thin rules, underline inputs.    */
+/* Mobile: card-stacks via data-label, never a scrolling spreadsheet.  */
+/* ------------------------------------------------------------------ */
+
+.ledger-wrap { margin-bottom: 8px; }
+
+table.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.ledger-table caption {
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 0 8px;
+}
+table.ledger-table thead th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+table.ledger-table thead th:first-child { padding-left: 2px; }
+table.ledger-table tbody td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+table.ledger-table tbody tr:last-child td { border-bottom: none; }
+table.ledger-table tbody td:first-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding-left: 2px;
+  white-space: nowrap;
+}
+table.ledger-table tbody td.cell-given {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.ledger-input {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 2px 6px;
+  border: none;
+  border-bottom: 1.5px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: right;
+}
+.ledger-input:focus { border-bottom-color: var(--accent); }
+td.is-correct .ledger-input { border-bottom-color: var(--success); color: var(--success); }
+td.is-incorrect .ledger-input { border-bottom-color: var(--error); }
+.ledger-status {
+  font-size: 0.6875rem;
+  min-height: 1em;
+  margin-top: 3px;
+  text-align: right;
+}
+.ledger-status.correct { color: var(--success); }
+.ledger-status.incorrect { color: var(--error); }
+
+.ledger-summary { margin-top: 4px; }
+.ledger-summary table.ledger-table tbody td:first-child {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  color: var(--text-secondary);
+  white-space: normal;
+}
+
+/* Mobile: table rows become labeled mini-cards, not a scroll-x grid */
+@media (max-width: 639px) {
+  table.ledger-table thead { display: none; }
+  table.ledger-table, table.ledger-table tbody, table.ledger-table tr, table.ledger-table td {
+    display: block;
+    width: 100%;
+  }
+  table.ledger-table tr {
+    border-top: 2px solid var(--border);
+    padding: 10px 0;
+  }
+  table.ledger-table tr:first-child { border-top: none; }
+  table.ledger-table td {
+    border-bottom: none !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 2px;
+    white-space: normal !important;
+  }
+  table.ledger-table td::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  table.ledger-table td:first-child::before { content: none; }
+  table.ledger-table td:first-child {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    padding-bottom: 2px;
+  }
+  .ledger-input { text-align: right; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Gamification chrome: score, streak, mastery, milestones             */
+/* ------------------------------------------------------------------ */
+
+.game-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.game-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.game-stat .game-stat-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--accent);
+}
+.mastery-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.mastery-badge[data-tier="practiced"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mastery-badge[data-tier="fluent"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.milestone-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 10px 14px;
+  margin: 0 0 16px;
+}
+.milestone-banner .milestone-mark {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ */
 /* Feedback / follow-up / explain                                      */
 /* ------------------------------------------------------------------ */
 
@@ -396,6 +605,29 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; }
   background: var(--bg);
   color: var(--text);
   width: 100%;
+}
+.followup-inputs:has(textarea) { max-width: none; }
+.followup-inputs textarea {
+  font: inherit;
+  font-size: 0.9375rem;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
+  max-width: 560px;
+}
+.model-answer {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  max-width: 560px;
 }
 
 .hint-text {
